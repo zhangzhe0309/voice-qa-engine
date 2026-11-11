@@ -1,14 +1,22 @@
 """Noise Evaluator: 环境噪声注入与 ASR/VAD 抗扰度度量引擎
 支持指定 SNR (信噪比) 噪声线性叠加合成，以及中文字错率 (CER) 动态规划算法度量。
+严格修复全局随机种子污染问题，采用局部独立 Random 实例。
 """
 
 import math
 import struct
 import random
-from typing import List, Tuple, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 class NoiseEvaluator:
+    def __init__(self, default_seed: int = 42):
+        self.default_seed = default_seed
+        self.rng = random.Random(default_seed)
+
+    def set_seed(self, seed: int):
+        self.rng = random.Random(seed)
+
     @staticmethod
     def calculate_cer(reference: str, hypothesis: str) -> Dict[str, Any]:
         """计算中文字符错误率 (CER = (Sub + Ins + Del) / TotalRef)."""
@@ -20,7 +28,6 @@ class NoiseEvaluator:
         if r_len == 0:
             return {"cer": 1.0 if h_len > 0 else 0.0, "distance": h_len, "ref_len": 0, "hyp_len": h_len}
 
-        # 动态规划矩阵 (Levenshtein)
         dp = [[0] * (h_len + 1) for _ in range(r_len + 1)]
         for i in range(r_len + 1):
             dp[i][0] = i
@@ -50,38 +57,43 @@ class NoiseEvaluator:
             "hyp_len": h_len
         }
 
-    @staticmethod
-    def inject_noise_to_pcm(pcm_samples: List[int], snr_db: float, noise_type: str = "gaussian") -> List[int]:
+    def inject_noise_to_pcm(
+        self,
+        pcm_samples: List[int],
+        snr_db: float,
+        noise_type: str = "gaussian",
+        seed: Optional[int] = None
+    ) -> List[int]:
         """将纯净语音样点以指定 SNR (dB) 叠加环境噪声。
         SNR_dB = 10 * log10(P_signal / P_noise)
+        使用独立 RNG 实例，绝不污染全局 random 状态。
         """
         n = len(pcm_samples)
         if n == 0:
             return []
 
-        # 计算信号功率
-        signal_power = sum(s * s for s in pcm_samples) / n
+        # 仅对有效振幅区间计信号功率，防止全静音主导
+        active_samples = [s for s in pcm_samples if abs(s) > 100]
+        calc_pool = active_samples if len(active_samples) > (n * 0.1) else pcm_samples
+        signal_power = sum(s * s for s in calc_pool) / max(1, len(calc_pool))
         if signal_power == 0:
             return pcm_samples
 
-        # 计算目标噪声功率: P_noise = P_signal / (10^(SNR/10))
         target_noise_power = signal_power / (10.0 ** (snr_db / 10.0))
         target_noise_std = math.sqrt(target_noise_power)
 
-        noisy_samples = []
-        random.seed(42)  # 固定随机种子确保测试可重复性
+        local_rng = random.Random(seed) if seed is not None else self.rng
 
+        noisy_samples = []
         for val in pcm_samples:
             if noise_type == "gaussian":
-                noise = random.gauss(0, target_noise_std)
+                noise = local_rng.gauss(0, target_noise_std)
             elif noise_type == "hallway_murmur":
-                # 模拟走廊低频环境人声咕哝
-                noise = random.gauss(0, target_noise_std) * 0.7 + random.uniform(-1, 1) * target_noise_std * 0.3
+                noise = local_rng.gauss(0, target_noise_std) * 0.7 + local_rng.uniform(-1, 1) * target_noise_std * 0.3
             else:
-                noise = random.uniform(-target_noise_std * 1.732, target_noise_std * 1.732)
+                noise = local_rng.uniform(-target_noise_std * 1.732, target_noise_std * 1.732)
 
             mixed = int(round(val + noise))
-            # 限制在 16-bit 范围 (-32768 ~ 32767)
             clamped = max(-32768, min(32767, mixed))
             noisy_samples.append(clamped)
 
@@ -101,13 +113,13 @@ class NoiseEvaluator:
             riff_size,
             b"WAVE",
             b"fmt ",
-            16,               # Subchunk1Size
-            1,                # AudioFormat (PCM)
-            1,                # NumChannels (Mono)
-            sample_rate,      # SampleRate
-            sample_rate * 2,  # ByteRate
-            2,                # BlockAlign
-            16,               # BitsPerSample
+            16,
+            1,
+            1,
+            sample_rate,
+            sample_rate * 2,
+            2,
+            16,
             b"data",
             data_size
         )

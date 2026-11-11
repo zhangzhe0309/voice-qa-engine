@@ -1,18 +1,18 @@
-"""Voice QA Engine: 工业级全链路语音自动化测试与评估套件
-一键执行物理声学质检、环境噪声抗扰度、ASR字错率(CER)、TTS时延与实时率(RTF)，
-以及全双工语音交互端到端质量评估 (四段物理时延, 打断与队列Flush断言, 三阶对抗矩阵与双Agent对弈)。
+"""Voice QA Engine: 工业级全链路语音自动化测试与评估套件 (CLI 调度总控)
+动态解析工程相对路径，严格遵循安全脱敏与状态隔离标准。
 """
 
 import os
 import sys
 import json
 import time
+from pathlib import Path
 
-VOICE_ENGINE_DIR = "/root/company-qa-workspace/voice-qa-engine"
-if VOICE_ENGINE_DIR not in sys.path:
-    sys.path.append(VOICE_ENGINE_DIR)
+# 动态解析工程根目录
+BASE_DIR = Path(__file__).resolve().parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
-# 导入底层基础模块
 from acoustic_inspector import AcousticInspector
 from noise_evaluator import NoiseEvaluator
 from latency_benchmark import LatencyBenchmark
@@ -32,6 +32,10 @@ def run_full_suite():
     report_data = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "test_target": "知心姐姐 & MOSS-Live 实时全双工语音链路 (TTS & ASR & VAD & Barge-in)",
+        "execution_context": {
+            "project_root": str(BASE_DIR),
+            "platform": sys.platform
+        },
         "modules": {}
     }
 
@@ -39,9 +43,12 @@ def run_full_suite():
     # 模块 1: 物理声学质量与爆音扫描 (Acoustic Anomaly & Pop Check)
     # -------------------------------------------------------------
     print("\n[Phase 1] 正在执行真实音频物理声学质检与爆音扫描...")
-    sample_wav_path = "/var/www/tts_isolated/samples/zhixin_tts_pop_test.wav"
+    # 优先使用本地相对路径下的样本
+    sample_wav_path = BASE_DIR / "samples" / "zhixin_tts_pop_test.wav"
+    if not sample_wav_path.exists():
+        sample_wav_path = Path("/var/www/tts_isolated/samples/zhixin_tts_pop_test.wav")
 
-    if os.path.exists(sample_wav_path):
+    if sample_wav_path.exists():
         with open(sample_wav_path, "rb") as f:
             sample_bytes = f.read()
 
@@ -55,20 +62,16 @@ def run_full_suite():
         print(f"  --> 超过阈值(8000)的突变次数: {metrics.get('jumps_exceeding_threshold_count')}")
         print(f"  --> 直流残留偏置 (DC Offset): {metrics.get('dc_offset')}")
         print(f"  --> 削波样点数: {metrics.get('clipping_sample_count')} (削波率: {metrics.get('clipping_rate_pct')}%)")
-        print(f"  --> 爆音风险综合评分 (0-100): {metrics.get('pop_risk_score')}")
-
-        if acoustic_res.get("header_anomalies"):
-            print(f"  [警报] 头文件异常: {acoustic_res['header_anomalies']}")
-        else:
-            print("  状态：头文件合规 (无 0xFFFFFFFF 假长度，大小闭合)")
+        print(f"  --> 爆音风险综合评分 (0-100): {metrics.get('pop_risk_score')} (状态: {acoustic_res.get('status')})")
     else:
         print("  [提示] 未找到测试样本音频，跳过此项。")
+        report_data["modules"]["acoustic_inspection"] = {"status": "NOT_RUN", "reason": "No sample audio found"}
 
     # -------------------------------------------------------------
     # 模块 2: 环境噪声注入与 ASR/VAD 抗扰度衰减矩阵 (Noise Robustness)
     # -------------------------------------------------------------
     print("\n[Phase 2] 正在执行环境噪声注入与 VAD/ASR 抗扰度衰减矩阵评测...")
-    if os.path.exists(sample_wav_path):
+    if sample_wav_path.exists():
         with open(sample_wav_path, "rb") as f:
             f.seek(44)
             pcm_raw = f.read()
@@ -85,22 +88,24 @@ def run_full_suite():
             noisy_wav = noise_eval.pcm_to_wav_bytes(noisy_pcm, sample_rate=24000)
 
             asr_res = latency_bench.benchmark_asr(noisy_wav)
-            hyp_text = asr_res.get("recognized_text", "").replace("，", "").replace("？", "").replace("。", "")
-            cer_res = noise_eval.calculate_cer(ref_text, hyp_text)
+            if asr_res.get("success"):
+                hyp_text = asr_res.get("recognized_text", "").replace("，", "").replace("？", "").replace("。", "")
+                cer_res = noise_eval.calculate_cer(ref_text, hyp_text)
+                env_desc = "安静环境" if snr >= 20 else ("走廊轻噪" if snr >= 10 else "严重嘈杂")
+                noise_results.append({
+                    "snr_db": snr,
+                    "environment_sim": env_desc,
+                    "hyp_text": hyp_text,
+                    "cer_rate": cer_res["cer"],
+                    "accuracy_rate": cer_res["accuracy"],
+                    "latency_ms": asr_res.get("latency_ms"),
+                    "status": "PASS" if cer_res["cer"] < 0.3 else "FAIL"
+                })
+                print(f"  --> SNR={snr:4.1f}dB ({env_desc}) | 识别: '{hyp_text}' | CER={cer_res['cer']*100:5.1f}% | 耗时: {asr_res.get('latency_ms')}ms")
+            else:
+                print(f"  --> SNR={snr:4.1f}dB | ASR 接口不可达: {asr_res.get('error')}")
 
-            env_desc = "安静环境" if snr >= 20 else ("走廊轻噪" if snr >= 10 else "严重嘈杂")
-            noise_results.append({
-                "snr_db": snr,
-                "environment_sim": env_desc,
-                "hyp_text": hyp_text,
-                "cer_rate": cer_res["cer"],
-                "accuracy_rate": cer_res["accuracy"],
-                "latency_ms": asr_res.get("latency_ms")
-            })
-
-            print(f"  --> SNR={snr:4.1f}dB ({env_desc}) | 识别: '{hyp_text}' | CER={cer_res['cer']*100:5.1f}% | 耗时: {asr_res.get('latency_ms')}ms")
-
-        report_data["modules"]["noise_robustness"] = noise_results
+        report_data["modules"]["noise_robustness"] = noise_results if noise_results else {"status": "INCONCLUSIVE", "reason": "ASR service unreachable"}
 
     # -------------------------------------------------------------
     # 模块 3: 时延与流式吞吐实时率基准 (Latency & RTF Benchmark)
@@ -122,47 +127,42 @@ def run_full_suite():
                 "audio_duration_s": res["audio_duration_seconds"],
                 "e2e_latency_ms": res["e2e_latency_ms"],
                 "rtf": res["real_time_factor_rtf"],
-                "is_healthy": res["is_rtf_healthy"]
+                "status": "PASS" if res["is_rtf_healthy"] else "FAIL"
             })
             print(f"  --> [{label}] 耗时: {res['e2e_latency_ms']}ms | 音频时长: {res['audio_duration_seconds']}s | 实时率 RTF: {res['real_time_factor_rtf']} (行业红线 < 0.8)")
         else:
-            print(f"  --> [{label}] 失败: {res.get('error')}")
+            print(f"  --> [{label}] 跳过: {res.get('error')} (状态: {res.get('status')})")
 
-    report_data["modules"]["latency_benchmark"] = tts_benchmarks
+    report_data["modules"]["latency_benchmark"] = tts_benchmarks if tts_benchmarks else {"status": "INCONCLUSIVE", "reason": "TTS credentials unconfigured"}
 
     # -------------------------------------------------------------
-    # 模块 4: 全双工实时语音交互与打断状态机评测 (Full-Duplex Evaluation)
+    # 模块 4: 全双工时序与状态机单元仿真 (Unit Simulation)
     # -------------------------------------------------------------
-    print("\n[Phase 4] 正在执行全双工交互端到端质量评估 (四段时延/打断队列Flush/三阶对抗/双Agent)...")
-    fd_report = full_duplex_eval.run_e2e_verification_suite()
-    report_data["modules"]["full_duplex_e2e_evaluation"] = fd_report
+    print("\n[Phase 4] 正在执行全双工时序与状态机算法单元仿真 (明确标记为 SIMULATED_PASS)...")
+    fd_report = full_duplex_eval.run_unit_simulation_suite()
+    report_data["modules"]["full_duplex_unit_simulation"] = fd_report
 
     lat_m = fd_report["latency_breakdown"]["metrics"]
     barge_m = fd_report["barge_in_queue_flush"]
     adv_m = fd_report["adversarial_matrix"]
     dual_m = fd_report["dual_agent_closure"]
 
-    print(f"  --> 四段物理时延: TTFT={lat_m['ttft_ms']}ms | 首音频包={lat_m['first_audio_packet_latency_ms']}ms | 扬声器首声={lat_m['eot_to_speech_latency_ms']}ms | 播放链路滞后={lat_m['client_playback_pipeline_lag_ms']}ms")
-    print(f"  --> 打断刹车时延: {barge_m['barge_in_stop_latency_ms']}ms (SLA <= 300ms) | 客户端待播队列清空断言: 队列={barge_m['pending_queue_size']} (状态: {barge_m['status']})")
-    print(f"  --> 三阶打断对抗: 正向打断成功率={adv_m['barge_in_success_rate']}% | 附和倾听精准率={adv_m['backchannel_precision']}% | 思考停顿误抢率={adv_m['premature_interruption_rate']}%")
-    print(f"  --> 双Agent对弈闭环: 轮次={dual_m['total_interactive_turns']} | 工具执行={dual_m['tool_call_count']} | 物理真实落盘核验: {dual_m['anti_surrender_closure_check']}")
+    print(f"  --> 四段物理时延算法核验: TTFT={lat_m['ttft_ms']}ms | 首音频包={lat_m['first_audio_packet_latency_ms']}ms | 扬声器首声={lat_m['eot_to_speech_latency_ms']}ms")
+    print(f"  --> 打断刹车时延算法: {barge_m['barge_in_stop_latency_ms']}ms (SLA <= 300ms) | 客户端待播队列清空断言: {barge_m['status']}")
+    print(f"  --> 三阶打断对抗矩阵算法: 正向打断={adv_m['barge_in_success_rate']}% | 附和倾听={adv_m['backchannel_precision']}% | 思考停顿误抢={adv_m['premature_interruption_rate']}%")
+    print(f"  --> 双Agent对弈闭环算法: 状态: {dual_m['status']} (注: 标记为 {fd_report['overall_status']}, 不冒充真实物理 E2E 结果)")
 
     # -------------------------------------------------------------
     # 物理落盘与综合健康结论输出
     # -------------------------------------------------------------
-    os.makedirs("/root/company-qa-workspace/voice-qa-engine/reports", exist_ok=True)
-    out_json = "/root/company-qa-workspace/voice-qa-engine/reports/voice_qa_full_baseline_report.json"
+    reports_dir = BASE_DIR / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    out_json = reports_dir / "voice_qa_full_baseline_report.json"
     with open(out_json, "w", encoding="utf-8") as f:
         json.dump(report_data, f, ensure_ascii=False, indent=2)
 
-    feishu_report = "/root/feishu-data/voice_qa_full_baseline_report.json"
-    with open(feishu_report, "w", encoding="utf-8") as f:
-        json.dump(report_data, f, ensure_ascii=False, indent=2)
-
     print("\n" + "=" * 70)
-    print(f"状态：全套物理测试完成！数据已落盘至:")
-    print(f"  1. {out_json}")
-    print(f"  2. {feishu_report}")
+    print(f"测试完成！基准数据已落盘至: {out_json}")
     print("=" * 70)
 
 

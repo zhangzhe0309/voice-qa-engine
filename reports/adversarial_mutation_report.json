@@ -1,28 +1,39 @@
 {
-  "bad_pop_spike": {
-    "case_name": "恶性爆音瞬态冲击 (Jump > 28000)",
-    "expected_intercept": true,
-    "max_sample_jump": 29500,
-    "pop_risk_score": 60,
-    "pass": true
-  },
-  "bad_clipping": {
-    "case_name": "幅值全满量程削波 (Clipping)",
-    "expected_intercept": true,
-    "clipping_rate_pct": 25.0,
-    "pass": true
-  },
-  "bad_fake_header": {
-    "case_name": "WAV 头部 4GB 0xFFFFFFFF 假长度",
-    "expected_intercept": true,
-    "header_anomalies_count": 1,
-    "pass": true
-  },
-  "bad_hard_cut": {
-    "case_name": "首尾硬截断与换源阶跃 (Step > 300)",
-    "expected_intercept": true,
-    "head_step_level": 16000,
-    "tail_step_level": 16000,
-    "pass": true
-  }
+  "summary": "ALL_MUTANTS_KILLED",
+  "results": [
+    {
+      "mutation_id": "MUT-001-POP-SPIKE",
+      "name": "瞬态一阶样点突变 (>8000 跳变)",
+      "injected_fault": "采样点断崖阶跃: -15000 -> 16000 (Delta 31000)",
+      "detected_jump": 31000,
+      "risk_score": 60,
+      "mutant_killed": true,
+      "status": "PASS"
+    },
+    {
+      "mutation_id": "MUT-002-FAKE-4GB-HEADER",
+      "name": "0xFFFFFFFF 假长度未闭合流",
+      "injected_fault": "RIFF 与 data 尺寸覆盖为 0xFFFFFFFF",
+      "anomalies_detected": 1,
+      "mutant_killed": true,
+      "status": "PASS"
+    },
+    {
+      "mutation_id": "MUT-003-CLIPPING-SQUARE",
+      "name": "连续 2000 样点方波满幅削波",
+      "injected_fault": "幅值削波至 +/-32768",
+      "clipping_samples": 2000,
+      "clipping_pct": 8.3333,
+      "mutant_killed": true,
+      "status": "PASS"
+    },
+    {
+      "mutation_id": "MUT-004-HARD-TAIL-STEP",
+      "name": "结尾最后样点高位硬截断 (12000)",
+      "injected_fault": "Tail Step 直接以 12000 截断不归零",
+      "tail_step_level": 12000,
+      "mutant_killed": true,
+      "status": "PASS"
+    }
+  ]
 }

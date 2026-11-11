@@ -1,38 +1,32 @@
 {
-  "timestamp": "2026-11-11 01:13:08",
+  "timestamp": "2026-11-11 01:44:08",
   "test_target": "知心姐姐 & MOSS-Live 实时全双工语音链路 (TTS & ASR & VAD & Barge-in)",
+  "execution_context": {
+    "project_root": "/root/company-qa-workspace/voice-qa-engine",
+    "platform": "linux"
+  },
   "modules": {
-    "latency_benchmark": [
-      {
-        "label": "短句 (8字)",
-        "text_length": 11,
-        "audio_duration_s": 3.796,
-        "e2e_latency_ms": 1154.6,
-        "rtf": 0.304,
-        "is_healthy": true
-      },
-      {
-        "label": "中句 (22字)",
-        "text_length": 25,
-        "audio_duration_s": 5.591,
-        "e2e_latency_ms": 3548.2,
-        "rtf": 0.635,
-        "is_healthy": true
-      },
-      {
-        "label": "长句 (45字)",
-        "text_length": 46,
-        "audio_duration_s": 10.203,
-        "e2e_latency_ms": 3528.5,
-        "rtf": 0.346,
-        "is_healthy": true
-      }
-    ],
-    "full_duplex_e2e_evaluation": {
-      "timestamp": "2026-11-11 01:13:17",
-      "target": "全双工实时语音交互评测链路 (MOSS-Live / WebRTC / SenseVoice)",
-      "overall_status": "成功",
+    "acoustic_inspection": {
+      "status": "NOT_RUN",
+      "reason": "No sample audio found"
+    },
+    "latency_benchmark": {
+      "status": "INCONCLUSIVE",
+      "reason": "TTS credentials unconfigured"
+    },
+    "full_duplex_unit_simulation": {
+      "timestamp": "2026-11-11 01:44:08",
+      "target": "全双工时序与断言单元仿真 (Full-Duplex Unit Simulation)",
+      "execution_mode": "unit_test_simulation",
+      "measurement_source": "mock_events",
+      "protocol_observed": false,
+      "audio_capture_verified": false,
+      "simulation_used": true,
+      "evidence_complete": false,
+      "overall_status": "SIMULATED_PASS",
       "latency_breakdown": {
+        "status": "SIMULATED_PASS",
+        "measurement_source": "mock_events",
         "metrics": {
           "ttft_ms": 410.0,
           "first_audio_packet_latency_ms": 520.0,
@@ -42,10 +36,11 @@
         "sla": {
           "ttft_target_ms": 600.0,
           "first_audio_target_ms": 700.0
-        },
-        "status": "成功"
+        }
       },
       "barge_in_queue_flush": {
+        "status": "SIMULATED_PASS",
+        "measurement_source": "mock_bargein_events",
         "barge_in_stop_latency_ms": 245.0,
         "interrupted_signal_rtt_ms": 120.0,
         "client_queue_eviction_ms": 125.0,
@@ -55,10 +50,11 @@
           "barge_in_stop_within_sla": true,
           "pending_queue_strictly_cleared": true,
           "zero_audio_leakage": true
-        },
-        "status": "成功"
+        }
       },
       "adversarial_matrix": {
+        "status": "SIMULATED_PASS",
+        "measurement_source": "mock_samples",
         "barge_in_success_rate": 100.0,
         "backchannel_precision": 100.0,
         "premature_interruption_rate": 0.0,
@@ -79,16 +75,16 @@
             "correct_holding": 2,
             "premature_interrupted": 0
           }
-        },
-        "status": "成功"
+        }
       },
       "dual_agent_closure": {
+        "status": "SIMULATED_PASS",
+        "measurement_source": "mock_session",
         "total_interactive_turns": 18,
         "tool_call_count": 1,
         "agent_verbal_claimed": true,
         "backend_physics_verified": true,
-        "anti_surrender_closure_check": "通过",
-        "task_completion_status": "成功"
+        "anti_surrender_closure_check": "通过"
       }
     }
   }
