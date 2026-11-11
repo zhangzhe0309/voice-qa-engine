@@ -1,0 +1,25 @@
+{
+  "session_dir": "/root/company-qa-workspace/voice-qa-engine/reports/2026-11-11/session_v12_1794386506",
+  "artifacts": {
+    "input_audio.wav": {
+      "sha256": "2976da01e205a110c9fa41d47659e238a5c6d3c3f3137582f2949853faa201dd",
+      "size_bytes": 3244
+    },
+    "output_audio.wav": {
+      "sha256": "ba584a378b11d9e9c98736fd8c256fe1453a84ee4139416d24b07acff424f0fb",
+      "size_bytes": 44
+    },
+    "events.jsonl": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    "metrics.json": {
+      "sha256": "9f75468d34daf17b723ff6f955481f9277a48238c2f772a3fc6407a9889bd5a5",
+      "size_bytes": 249
+    },
+    "session.json": {
+      "sha256": "103e1b584e647374f8abd0cf73da796c16c2357682cb1a3ba9215a6ba823c6ca",
+      "size_bytes": 412
+    }
+  }
+}

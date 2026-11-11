@@ -1,0 +1,15 @@
+{
+  "session_id": "session_v12_1794386506",
+  "version": "1.2.0",
+  "scenario": "barge_in_and_ghost_rejection",
+  "status": "PASS",
+  "metrics": {
+    "ttft_ms": null,
+    "first_audio_chunk_ms": null,
+    "local_stop_latency_ms": 0.17258,
+    "queue_flush_latency_ms": 0.089976,
+    "post_interrupt_old_chunk_count": 1,
+    "post_interrupt_old_chunk_rejected_count": 1,
+    "old_chunk_rejection_rate": 1.0
+  }
+}

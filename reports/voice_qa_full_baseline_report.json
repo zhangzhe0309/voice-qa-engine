@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-11 01:44:08",
+  "timestamp": "2026-11-11 03:41:43",
   "test_target": "知心姐姐 & MOSS-Live 实时全双工语音链路 (TTS & ASR & VAD & Barge-in)",
   "execution_context": {
     "project_root": "/root/company-qa-workspace/voice-qa-engine",
@@ -15,7 +15,7 @@
       "reason": "TTS credentials unconfigured"
     },
     "full_duplex_unit_simulation": {
-      "timestamp": "2026-11-11 01:44:08",
+      "timestamp": "2026-11-11 03:41:43",
       "target": "全双工时序与断言单元仿真 (Full-Duplex Unit Simulation)",
       "execution_mode": "unit_test_simulation",
       "measurement_source": "mock_events",

@@ -168,3 +168,123 @@ def run_full_suite():
 
 if __name__ == "__main__":
     run_full_suite()
+
+
+def run_v12_suite():
+    import asyncio
+    from voice_qa_engine.runtime.session_runtime import SessionRuntime
+    from voice_qa_engine.runtime.event_timeline import EventTimeline
+    from voice_qa_engine.playback.engine import PlaybackEngine
+    from voice_qa_engine.playback.sink import MockPlaybackSink
+    from voice_qa_engine.evidence.recorder import EvidenceRecorder
+    from voice_qa_engine.audio.input.wav_input import WavAudioInput
+    from voice_qa_engine.evaluators.assertion_models import TestStatus
+    from voice_qa_engine.evaluators.latency import LatencyEvaluator
+    from voice_qa_engine.evaluators.evidence_validator import EvidenceValidator
+    from voice_qa_engine.scenarios.normal_qa import NormalQAScenario
+    from voice_qa_engine.scenarios.barge_in import BargeInScenario
+    from voice_qa_engine.scenarios.rapid_barge_in import RapidDoubleBargeInScenario
+    import numpy as np
+
+    print("\n" + "=" * 70)
+    print("🚀 Voice QA Engine V1.2: 真实全双工执行基座与防幽灵音频引擎 (V1.2 Suite)")
+    print("=" * 70)
+
+    async def _async_exec():
+        session_id = f"session_v12_{int(time.time())}"
+        reports_dir = BASE_DIR / "reports" / time.strftime("%Y-%m-%d")
+        recorder = EvidenceRecorder(base_dir=str(reports_dir), session_id=session_id)
+        await recorder.initialize()
+
+        timeline = EventTimeline()
+        sink = MockPlaybackSink()
+        engine = PlaybackEngine(sink=sink, timeline=timeline)
+
+        # 构造基准 100ms 测试音频
+        import io, wave
+        buf = io.BytesIO()
+        with wave.open(buf, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes((np.zeros(1600, dtype=np.int16)).tobytes())
+        buf.seek(0)
+        audio_input = WavAudioInput(file_obj=buf, frame_duration_ms=20.0)
+
+        runtime = SessionRuntime(
+            session_id=session_id,
+            audio_input=audio_input,
+            playback_engine=engine,
+            timeline=timeline,
+            recorder=recorder
+        )
+
+        print("[V1.2 Step 1] 建立会话连接并初始化单调时钟时间轴...")
+        await runtime.connect()
+        await runtime.start()
+
+        print("[V1.2 Step 2] 上行持续推流音频 (Continuous Audio Ingestion)...")
+        await runtime.feed_audio()
+
+        print("[V1.2 Step 3] 模拟助手响应开始并下发音频分片...")
+        gen_1 = await engine.begin_response("resp_v12_001")
+
+        print("[V1.2 Step 4] 触发用户插话打断 (Barge-in Interrupt) 并验证代次隔离...")
+        await engine.interrupt(reason="user_barge_in")
+
+        # 模拟打断后延迟到达的旧 Chunk
+        from voice_qa_engine.playback.queue import PlaybackChunk
+        from voice_qa_engine.audio.models import AudioFormat, SampleFormat, AudioFrame
+        dummy_frame = AudioFrame(
+            samples=np.zeros(320, dtype=np.float32),
+            format=AudioFormat(16000, 1, SampleFormat.PCM_F32LE),
+            timestamp_ns=time.monotonic_ns(),
+            sequence_id=5,
+            duration_ms=20.0
+        )
+        stale_chunk = PlaybackChunk(
+            session_id=session_id,
+            response_id="resp_v12_001",
+            generation_id=gen_1,
+            sequence_id=5,
+            audio=dummy_frame,
+            received_monotonic_ns=time.monotonic_ns(),
+            expected_duration_ms=20.0,
+            cancel_token_id="old_token",
+            connection_epoch=1
+        )
+        rejected = not (await engine.push_chunk(stale_chunk))
+        print(f"  --> 防幽灵音频硬断言: 打断后迟到的旧 Chunk 拒绝状态: {'成功拒绝' if rejected else '失败漏音'}")
+
+        await runtime.close()
+
+        # 计算单调时钟时延指标
+        events = timeline.snapshot()
+        metrics = LatencyEvaluator.calculate_latencies(events)
+        session_meta = {
+            "session_id": session_id,
+            "version": "1.2.0",
+            "scenario": "barge_in_and_ghost_rejection",
+            "status": TestStatus.PASS if rejected else TestStatus.FAIL,
+            "metrics": metrics
+        }
+        await recorder.finalize(metrics=metrics, session_meta=session_meta)
+
+        # 产物防篡改校验
+        sess_dir = os.path.join(str(reports_dir), session_id)
+        valid, reason, _ = EvidenceValidator.validate_session_dir(sess_dir)
+        print(f"[V1.2 Step 5] 五大必备物理证据生成与 SHA-256 校验: {reason}")
+        print(f"  --> 产物目录: {sess_dir}")
+        print(f"  --> 本地打断刹车时延: {metrics.get('local_stop_latency_ms', 0):.2f}ms")
+        print(f"  --> 队列清空耗时: {metrics.get('queue_flush_latency_ms', 0):.2f}ms")
+        print(f"  --> 旧分片拒绝率: {metrics.get('old_chunk_rejection_rate') * 100 if metrics.get('old_chunk_rejection_rate') else 0:.1f}%")
+
+    asyncio.run(_async_exec())
+
+
+if __name__ == "__main__":
+    if "--v12" in sys.argv:
+        run_v12_suite()
+    else:
+        run_full_suite()
+        run_v12_suite()

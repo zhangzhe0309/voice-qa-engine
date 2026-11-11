@@ -19,6 +19,7 @@ from voice_qa_engine.evidence.recorder import EvidenceRecorder
 from voice_qa_engine.clients.protocol_models import RuntimeEvent, EventType
 from voice_qa_engine.audio.models import SampleFormat, AudioFormat, AudioFrame
 from voice_qa_engine.runtime.event_timeline import EventTimeline
+from voice_qa_engine.scenarios.normal_qa import NormalQAScenario
 from voice_qa_engine.scenarios.barge_in import BargeInScenario
 from voice_qa_engine.scenarios.rapid_barge_in import RapidDoubleBargeInScenario
 
@@ -34,7 +35,6 @@ class TestScenariosAndEvidence(unittest.IsolatedAsyncioTestCase):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     async def test_evidence_recorder_five_artifacts_and_manifest(self):
-        # 1. 写入 input frame
         fmt = AudioFormat(sample_rate=16000, channels=1, sample_format=SampleFormat.PCM_F32LE)
         frame = AudioFrame(
             samples=np.zeros(320, dtype=np.float32),
@@ -46,7 +46,6 @@ class TestScenariosAndEvidence(unittest.IsolatedAsyncioTestCase):
         await self.recorder.write_input_audio(frame)
         await self.recorder.write_output_audio(frame)
 
-        # 2. 写入事件
         evt = RuntimeEvent(
             event_type=EventType.SESSION_READY,
             session_id=self.session_id,
@@ -54,12 +53,10 @@ class TestScenariosAndEvidence(unittest.IsolatedAsyncioTestCase):
         )
         await self.recorder.write_event(evt)
 
-        # 3. 写入 metrics 与 session 元数据
         metrics = {"first_audio_chunk_ms": 320.5, "local_stop_latency_ms": 110.2}
         session_meta = {"scenario": "barge_in", "status": TestStatus.SIMULATED_PASS}
         await self.recorder.finalize(metrics=metrics, session_meta=session_meta)
 
-        # 4. 验证五个必备产物是否真实落盘
         session_folder = os.path.join(self.test_dir, self.session_id)
         self.assertTrue(os.path.exists(os.path.join(session_folder, "input_audio.wav")))
         self.assertTrue(os.path.exists(os.path.join(session_folder, "output_audio.wav")))
@@ -67,7 +64,6 @@ class TestScenariosAndEvidence(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(os.path.exists(os.path.join(session_folder, "metrics.json")))
         self.assertTrue(os.path.exists(os.path.join(session_folder, "session.json")))
 
-        # 5. 验证 manifest.json SHA-256 哈希校验
         manifest_path = os.path.join(session_folder, "manifest.json")
         self.assertTrue(os.path.exists(manifest_path))
         with open(manifest_path, "r", encoding="utf-8") as f:
@@ -78,10 +74,26 @@ class TestScenariosAndEvidence(unittest.IsolatedAsyncioTestCase):
 
 
 class TestScenariosAssertions(unittest.TestCase):
+    def test_normal_qa_assertion_success(self):
+        timeline = EventTimeline()
+        t0 = time.monotonic_ns()
+        events = [
+            RuntimeEvent(event_type=EventType.SESSION_READY, session_id="s1", monotonic_ns=t0),
+            RuntimeEvent(event_type=EventType.INPUT_AUDIO_SENT, session_id="s1", sequence_id=0, monotonic_ns=t0 + 10),
+            RuntimeEvent(event_type=EventType.INPUT_AUDIO_END, session_id="s1", monotonic_ns=t0 + 20),
+            RuntimeEvent(event_type=EventType.RESPONSE_STARTED, session_id="s1", response_id="r1", monotonic_ns=t0 + 50),
+            RuntimeEvent(event_type=EventType.AUDIO_CHUNK, session_id="s1", response_id="r1", sequence_id=0, monotonic_ns=t0 + 70),
+            RuntimeEvent(event_type=EventType.RESPONSE_COMPLETED, session_id="s1", response_id="r1", monotonic_ns=t0 + 100)
+        ]
+        timeline.events = events
+
+        scenario = NormalQAScenario(runtime=None, audio_input=None, playback_engine=None, timeline=timeline)
+        assertions = scenario.assertions(timeline.snapshot())
+        self.assertTrue(all(a.passed for a in assertions))
+
     def test_barge_in_assertion_success(self):
         timeline = EventTimeline()
         t0 = time.monotonic_ns()
-        # 模拟打断事件链
         evt1 = RuntimeEvent(
             event_type=EventType.PLAYBACK_INTERRUPT_REQUESTED,
             session_id="s1",
@@ -107,7 +119,6 @@ class TestScenariosAssertions(unittest.TestCase):
         self.assertTrue(all(a.passed for a in assertions))
 
     def test_rapid_barge_in_catches_stale_resumption(self):
-        """测试快速双打断门禁能精准拦截'旧代次意外恢复播放'的恶性缺陷"""
         timeline = EventTimeline()
         t0 = time.monotonic_ns()
         evt_int1 = RuntimeEvent(
@@ -122,11 +133,10 @@ class TestScenariosAssertions(unittest.TestCase):
             monotonic_ns=t0 + 50,
             payload={"old_generation_id": 2, "new_generation_id": 3}
         )
-        # 恶性缺陷：在第二次打后，旧代次 2 的 Chunk 居然又触发了播放！
         evt_stale_play = RuntimeEvent(
             event_type=EventType.PLAYBACK_STARTED,
             session_id="s1",
-            generation_id=2,  # <= second_old
+            generation_id=2,
             monotonic_ns=t0 + 60
         )
         timeline.events = [evt_int1, evt_int2, evt_stale_play]
