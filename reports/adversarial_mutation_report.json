@@ -1,0 +1,28 @@
+{
+  "bad_pop_spike": {
+    "case_name": "恶性爆音瞬态冲击 (Jump > 28000)",
+    "expected_intercept": true,
+    "max_sample_jump": 29500,
+    "pop_risk_score": 60,
+    "pass": true
+  },
+  "bad_clipping": {
+    "case_name": "幅值全满量程削波 (Clipping)",
+    "expected_intercept": true,
+    "clipping_rate_pct": 25.0,
+    "pass": true
+  },
+  "bad_fake_header": {
+    "case_name": "WAV 头部 4GB 0xFFFFFFFF 假长度",
+    "expected_intercept": true,
+    "header_anomalies_count": 1,
+    "pass": true
+  },
+  "bad_hard_cut": {
+    "case_name": "首尾硬截断与换源阶跃 (Step > 300)",
+    "expected_intercept": true,
+    "head_step_level": 16000,
+    "tail_step_level": 16000,
+    "pass": true
+  }
+}
