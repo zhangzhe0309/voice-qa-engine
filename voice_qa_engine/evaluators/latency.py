@@ -48,7 +48,10 @@ class LatencyEvaluator:
         # 3. 计算打断本地刹车停止时延 (local_stop_latency_ms)
         interrupt_events = [e for e in events if e.event_type == EventType.PLAYBACK_INTERRUPT_REQUESTED]
         if interrupt_events:
-            int_ns = interrupt_events[0].monotonic_ns
+            int_evt = interrupt_events[0]
+            int_ns = int_evt.monotonic_ns
+            old_gen = int_evt.payload.get("old_generation_id", 0)
+
             # 队列清空耗时
             flush_events = [e for e in events if e.event_type == EventType.PLAYBACK_QUEUE_FLUSHED and e.monotonic_ns >= int_ns]
             if flush_events:
@@ -59,14 +62,31 @@ class LatencyEvaluator:
             if sink_stop_events:
                 metrics["local_stop_latency_ms"] = (sink_stop_events[0].monotonic_ns - int_ns) / 1_000_000.0
 
-            # 统计打断后到达的旧 Chunk 拒绝情况
+            # 统计打断后到达的旧 Chunk 拒绝与幽灵泄漏情况 (SLA 一票否决)
             rejected_events = [e for e in events if e.event_type == EventType.AUDIO_CHUNK_REJECTED and e.monotonic_ns >= int_ns]
-            metrics["post_interrupt_old_chunk_rejected_count"] = len(rejected_events)
-            metrics["post_interrupt_old_chunk_count"] = len(rejected_events)
+            leaked_events = [
+                e for e in events
+                if e.event_type == EventType.PLAYBACK_STARTED
+                and e.monotonic_ns >= int_ns
+                and e.generation_id <= old_gen
+            ]
 
-            if metrics["post_interrupt_old_chunk_count"] > 0:
-                metrics["old_chunk_rejection_rate"] = 1.0  # 全部被拒绝
+            metrics["post_interrupt_old_chunk_rejected_count"] = len(rejected_events)
+            metrics["post_interrupt_old_chunk_leaked_count"] = len(leaked_events)
+            total_old = len(rejected_events) + len(leaked_events)
+            metrics["post_interrupt_old_chunk_count"] = total_old
+
+            if total_old > 0:
+                metrics["old_chunk_rejection_rate"] = len(rejected_events) / float(total_old)
             else:
                 metrics["old_chunk_rejection_rate"] = None  # 未观察到旧Chunk到达，不能虚标100%
+
+            # SLA 门禁达标判定
+            metrics["sla_compliance"] = {
+                "ttft_pass": (metrics["ttft_ms"] <= 600.0) if metrics["ttft_ms"] is not None else None,
+                "first_audio_pass": (metrics["first_audio_chunk_ms"] <= 700.0) if metrics["first_audio_chunk_ms"] is not None else None,
+                "local_stop_pass": (metrics["local_stop_latency_ms"] <= 300.0) if metrics["local_stop_latency_ms"] is not None else None,
+                "zero_ghost_leakage": (len(leaked_events) == 0)
+            }
 
         return metrics

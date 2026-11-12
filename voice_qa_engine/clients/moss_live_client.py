@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Voice QA Engine V1.2 - MOSS-Live WebSocket 双向流式客户端
 负责网络传输、会话代次管理、上行持续推流与下行事件监听并发分离
@@ -14,6 +12,7 @@ try:
     import websockets
     _HAS_WEBSOCKETS = True
 except ImportError:
+    websockets = None  # type: ignore[assignment]
     _HAS_WEBSOCKETS = False
 
 from voice_qa_engine.runtime.session_state import ConnectionState
@@ -46,7 +45,7 @@ class MossLiveClient:
 
     async def connect(self, endpoint: str = "ws://localhost:8080/v1/realtime", headers: Optional[Dict[str, str]] = None):
         """建立 WebSocket 连接并执行协议握手"""
-        if not _HAS_WEBSOCKETS:
+        if not _HAS_WEBSOCKETS or websockets is None:
             raise RuntimeError("websockets package is not installed")
 
         self.state = ConnectionState.CONNECTING

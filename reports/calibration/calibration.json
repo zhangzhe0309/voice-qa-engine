@@ -1,0 +1,178 @@
+{
+  "kind": "physical_latency_calibration",
+  "measurement_source": "physical_loopback_and_microphone",
+  "sample_rate": 48000,
+  "trials": 5,
+  "render_path_offset_ms": {
+    "n": 5,
+    "p50": 10.229,
+    "p95": 14.229,
+    "p99": 15.029,
+    "min": -0.771,
+    "max": 15.229,
+    "mean": 8.029,
+    "std": 6.058
+  },
+  "acoustic_path_offset_ms": {
+    "n": 5,
+    "p50": 372.666,
+    "p95": 487.371,
+    "p99": 488.757,
+    "min": 176.709,
+    "max": 489.104,
+    "mean": 374.375,
+    "std": 126.437
+  },
+  "device_latency_const_ms": 10.229,
+  "air_path_extra_ms": 362.437,
+  "render_jitter_threshold_ms": 39.229,
+  "device": {
+    "loopback": {
+      "index": 17,
+      "name": "Speaker (Realtek(R) Audio) [Loopback]",
+      "host_api": "Windows WASAPI",
+      "sample_rate": 48000,
+      "in_ch": 2,
+      "out_ch": 0,
+      "is_loopback": true
+    },
+    "output": {
+      "index": 13,
+      "name": "Speaker (Realtek(R) Audio)",
+      "host_api": "Windows WASAPI",
+      "sample_rate": 48000,
+      "in_ch": 0,
+      "out_ch": 2,
+      "is_loopback": false
+    },
+    "microphone": {
+      "index": 14,
+      "name": "Microphone Array (Realtek(R) Audio)",
+      "host_api": "Windows WASAPI",
+      "sample_rate": 48000,
+      "in_ch": 2,
+      "out_ch": 0,
+      "is_loopback": false
+    }
+  },
+  "raw": {
+    "output_stream_latency_ms": 22.0,
+    "loopback_input_latency_ms": 22.0,
+    "mic_input_latency_ms": 22.0,
+    "per_trial": [
+      {
+        "trial": 0,
+        "loopback_samples": 99840,
+        "loopback_global_lag_ms": 12.5,
+        "loopback_click_delta_ms": [
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729
+        ],
+        "mic_global_lag_ms": 353.0,
+        "mic_click_delta_ms": [
+          -0.042,
+          -38.0,
+          -9.833,
+          -1.062,
+          -34.125,
+          -12.208
+        ]
+      },
+      {
+        "trial": 1,
+        "loopback_samples": 99840,
+        "loopback_global_lag_ms": -3.5,
+        "loopback_click_delta_ms": [
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729
+        ],
+        "mic_global_lag_ms": 417.104,
+        "mic_click_delta_ms": [
+          -44.438,
+          -38.646,
+          0.104,
+          40.0,
+          48.25,
+          -5.792
+        ]
+      },
+      {
+        "trial": 2,
+        "loopback_samples": 98400,
+        "loopback_global_lag_ms": 7.5,
+        "loopback_click_delta_ms": [
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729
+        ],
+        "mic_global_lag_ms": 507.958,
+        "mic_click_delta_ms": [
+          -18.854,
+          30.188,
+          -20.812,
+          -43.0,
+          -45.417,
+          -26.646
+        ]
+      },
+      {
+        "trial": 3,
+        "loopback_samples": 99360,
+        "loopback_global_lag_ms": 2.5,
+        "loopback_click_delta_ms": [
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729
+        ],
+        "mic_global_lag_ms": 467.104,
+        "mic_click_delta_ms": [
+          13.333,
+          30.208,
+          13.25,
+          44.125,
+          -25.438,
+          47.833
+        ]
+      },
+      {
+        "trial": 4,
+        "loopback_samples": 98880,
+        "loopback_global_lag_ms": 7.5,
+        "loopback_click_delta_ms": [
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729,
+          2.729
+        ],
+        "mic_global_lag_ms": 151.021,
+        "mic_click_delta_ms": [
+          25.688,
+          -28.417,
+          -22.146,
+          7.812,
+          18.854,
+          -47.312
+        ]
+      }
+    ],
+    "lead_in_samples": 9600
+  },
+  "timestamp": "2026-11-11T18:03:13",
+  "note": "render_path_offset_ms 是应用 write() 到 loopback 采到的物理偏移，已包含驱动缓冲；所有播放侧时延测量须扣除该常数。acoustic_path_offset_ms 额外包含扬声器+空气+麦克风AD，为 null 表示麦克风未采到探针（房间静音或未接麦）。"
+}

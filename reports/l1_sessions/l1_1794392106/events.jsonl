@@ -1,0 +1,7 @@
+{"event_type": "session.ready", "monotonic_ns": 435519140000000, "sequence_id": null, "response_id": null, "raw_event_type": "session.created"}
+{"event_type": "session.ready", "monotonic_ns": 435519140000000, "sequence_id": null, "response_id": null, "raw_event_type": "session.updated"}
+{"event_type": "input.speech.started", "monotonic_ns": 435519140000000, "sequence_id": null, "response_id": null, "raw_event_type": "input_audio_buffer.speech_started"}
+{"event_type": "response.started", "monotonic_ns": 435519531000000, "sequence_id": null, "response_id": "resp_1794392107212", "raw_event_type": "response.created"}
+{"event_type": "response.text.delta", "monotonic_ns": 435519531000000, "sequence_id": null, "response_id": "resp_1794392107212", "raw_event_type": "response.text.delta"}
+{"event_type": "response.audio.chunk", "monotonic_ns": 435519750000000, "sequence_id": 0, "response_id": "resp_1794392107212", "raw_event_type": "response.audio.delta"}
+{"event_type": "response.cancelled", "monotonic_ns": 435519906000000, "sequence_id": null, "response_id": "resp_1794392107212", "raw_event_type": "response.cancelled"}

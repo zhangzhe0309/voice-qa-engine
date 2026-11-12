@@ -14,6 +14,8 @@ from voice_qa_engine.runtime.response_registry import ResponseRegistry
 from voice_qa_engine.playback.engine import PlaybackEngine
 from voice_qa_engine.evidence.recorder import EvidenceRecorder
 from voice_qa_engine.clients.protocol_models import RuntimeEvent, EventType
+from voice_qa_engine.runtime.context_stack import ContextCallStack
+from voice_qa_engine.runtime.tool_runtime import ToolAbortManager
 
 
 class SessionRuntime:
@@ -24,7 +26,9 @@ class SessionRuntime:
         playback_engine: PlaybackEngine,
         timeline: EventTimeline,
         recorder: EvidenceRecorder,
-        client=None
+        client=None,
+        context_stack: Optional[ContextCallStack] = None,
+        tool_manager: Optional[ToolAbortManager] = None
     ):
         self.session_id = session_id
         self.audio_input = audio_input
@@ -32,6 +36,8 @@ class SessionRuntime:
         self.timeline = timeline
         self.recorder = recorder
         self.client = client
+        self.context_stack = context_stack or ContextCallStack()
+        self.tool_manager = tool_manager or ToolAbortManager()
 
         self.state = SessionState.CREATED
         self.registry = ResponseRegistry()

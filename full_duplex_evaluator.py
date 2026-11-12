@@ -21,10 +21,13 @@ class FullDuplexEvaluator:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {
             "max_barge_in_stop_latency_ms": 300.0,
+            "barge_in_p50_target_ms": 200.0,
+            "barge_in_p95_target_ms": 300.0,
+            "barge_in_hard_limit_ms": 350.0,
             "max_ttft_ms": 600.0,
             "max_first_audio_ms": 700.0,
-            "min_backchannel_precision": 0.98,
-            "max_premature_interruption_rate": 0.015,
+            "min_backchannel_precision": 0.985,  # 规范 v1.4.0/v1.4.1 核心 SLA: 附和精准度 >= 98.5%
+            "max_premature_interruption_rate": 0.015,  # 留白 0.5s~2.5s 误抢话率 <= 1.5%
             "audio_sample_rate": 16000,
             "frame_duration_ms": 20
         }

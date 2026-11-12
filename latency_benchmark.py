@@ -139,7 +139,7 @@ class LatencyBenchmark:
 
         try:
             res_json = resp.json()
-            text = res_json.get("data", "")
+            text = res_json.get("data") or ""
         except ValueError:
             return {"success": False, "status": "ERROR", "error": "ASR 响应非合法 JSON"}
 

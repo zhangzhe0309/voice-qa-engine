@@ -3,18 +3,17 @@
 动态解析工程相对路径，消除硬编码。
 """
 
-import os
-import sys
-import struct
-import math
 import json
+import math
+import struct
+import sys
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from acoustic_inspector import AcousticInspector
+from acoustic_inspector import AcousticInspector  # noqa: E402
 
 inspector = AcousticInspector()
 MUTATION_DIR = BASE_DIR / "mutations"
@@ -31,7 +30,12 @@ def generate_clean_base_pcm(duration_sec: float = 1.0, sample_rate: int = 24000)
     return struct.pack(f"<{num_samples}h", *samples)
 
 
-def make_standard_wav(pcm_data: bytes, sample_rate: int = 24000, fake_riff_size: int = None, fake_data_size: int = None) -> bytes:
+def make_standard_wav(
+    pcm_data: bytes,
+    sample_rate: int = 24000,
+    fake_riff_size: int | None = None,
+    fake_data_size: int | None = None,
+) -> bytes:
     data_size = len(pcm_data) if fake_data_size is None else fake_data_size
     riff_size = (len(pcm_data) + 36) if fake_riff_size is None else fake_riff_size
 

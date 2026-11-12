@@ -1,0 +1,48 @@
+{
+  "session_id": "l1_1794392085",
+  "ws_url": "ws://127.0.0.1:8899",
+  "measurement_source": "protocol_observed",
+  "sample_rate": 16000,
+  "n": 2,
+  "audio_delta_count": 2,
+  "duplicate_delta_count": 0,
+  "out_of_order_count": 0,
+  "uplink_enqueued": 31,
+  "uplink_dropped": 0,
+  "ttft_ms": -485.0,
+  "first_audio_chunk_ms": -266.0,
+  "cancel_handler_ms": 141.0,
+  "cancel_to_last_audio_ms": 0.0,
+  "response_completed": false,
+  "timestamps_monotonic_ns": {
+    "handshake_sent_ns": 435498265000000,
+    "session_ready_ns": 435498265000000,
+    "first_text_ns": 435498671000000,
+    "first_audio_ns": 435498890000000,
+    "cancel_sent_ns": 435498890000000,
+    "last_audio_ns": 435498890000000,
+    "cancelled_ns": 435499031000000,
+    "input_audio_end_ns": 435499156000000
+  },
+  "comparison_vs_ground_truth": {
+    "ttft_ms": {
+      "expected": 400.0,
+      "measured": -485.0,
+      "diff_ms": -885.0,
+      "ok": false
+    },
+    "first_audio_chunk_ms": {
+      "expected": 600.0,
+      "measured": -266.0,
+      "diff_ms": -866.0,
+      "ok": false
+    },
+    "cancel_handler_ms": {
+      "expected": 150.0,
+      "measured": 141.0,
+      "diff_ms": -9.0,
+      "ok": true
+    }
+  },
+  "ruler_verdict": "FAIL"
+}

@@ -1,21 +1,88 @@
 {
-  "timestamp": "2026-11-11 03:41:43",
+  "timestamp": "2026-11-12 10:20:14",
   "test_target": "知心姐姐 & MOSS-Live 实时全双工语音链路 (TTS & ASR & VAD & Barge-in)",
   "execution_context": {
-    "project_root": "/root/company-qa-workspace/voice-qa-engine",
-    "platform": "linux"
+    "project_root": "D:\\personal\\yuyin\\voice-qa-engine",
+    "platform": "win32"
   },
   "modules": {
     "acoustic_inspection": {
-      "status": "NOT_RUN",
-      "reason": "No sample audio found"
+      "valid": true,
+      "status": "PASS",
+      "format_info": {
+        "sample_rate_hz": 24000,
+        "channels": 1,
+        "bit_depth": 16,
+        "duration_seconds": 1.0,
+        "total_samples": 24000,
+        "file_size_bytes": 48044
+      },
+      "metrics": {
+        "max_sample_jump": 1381,
+        "max_jump_time_s": 0.0023,
+        "jumps_exceeding_threshold_count": 0,
+        "dc_offset": 0.0,
+        "rms_energy": 8484.8,
+        "clipping_sample_count": 0,
+        "clipping_rate_pct": 0.0,
+        "head_step_level": 0,
+        "tail_step_level": 1379,
+        "pop_risk_score": 15
+      },
+      "header_anomalies": [],
+      "transient_anomalies": [
+        {
+          "type": "HARD_TAIL_CUTOFF",
+          "severity": "WARNING",
+          "message": "结尾最后样点绝对值达 1379 (非零截断)，容易在音频播放完毕瞬间产生硬件回零爆音"
+        }
+      ],
+      "top_jump_events": []
     },
+    "noise_robustness": [
+      {
+        "snr_db": 25.0,
+        "environment_sim": "安静环境",
+        "hyp_text": "",
+        "cer_rate": 1.0,
+        "accuracy_rate": 0.0,
+        "latency_ms": 3226.5,
+        "status": "FAIL"
+      },
+      {
+        "snr_db": 15.0,
+        "environment_sim": "走廊轻噪",
+        "hyp_text": "",
+        "cer_rate": 1.0,
+        "accuracy_rate": 0.0,
+        "latency_ms": 1992.0,
+        "status": "FAIL"
+      },
+      {
+        "snr_db": 10.0,
+        "environment_sim": "走廊轻噪",
+        "hyp_text": "",
+        "cer_rate": 1.0,
+        "accuracy_rate": 0.0,
+        "latency_ms": 1901.4,
+        "status": "FAIL"
+      },
+      {
+        "snr_db": 5.0,
+        "environment_sim": "严重嘈杂",
+        "hyp_text": "",
+        "cer_rate": 1.0,
+        "accuracy_rate": 0.0,
+        "latency_ms": 2022.4,
+        "status": "FAIL"
+      }
+    ],
     "latency_benchmark": {
       "status": "INCONCLUSIVE",
       "reason": "TTS credentials unconfigured"
     },
     "full_duplex_unit_simulation": {
-      "timestamp": "2026-11-11 03:41:43",
+      "timestamp": "2026-11-12 10:20:23",
       "target": "全双工时序与断言单元仿真 (Full-Duplex Unit Simulation)",
       "execution_mode": "unit_test_simulation",
       "measurement_source": "mock_events",

@@ -1,0 +1,103 @@
+{
+  "kind": "mutation_test",
+  "mutation_id": "MUT-005-GHOST-AUDIO",
+  "detection_source": "physical_loopback_3khz_band_energy",
+  "results": [
+    {
+      "variant": "positive_control",
+      "stale_chunk_accepted": true,
+      "played_sequences": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ghost_detected": true,
+      "ghost_band_ratio": 0.9777,
+      "rms": 3363.37,
+      "samples": 19200
+    },
+    {
+      "variant": "guarded",
+      "stale_chunk_accepted": false,
+      "played_sequences": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ghost_detected": false,
+      "ghost_band_ratio": 0.0212,
+      "rms": 0.48,
+      "samples": 19200
+    },
+    {
+      "variant": "mutant_push_only",
+      "stale_chunk_accepted": true,
+      "played_sequences": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "ghost_detected": false,
+      "ghost_band_ratio": 0.0212,
+      "rms": 0.48,
+      "samples": 19200
+    },
+    {
+      "variant": "mutant",
+      "stale_chunk_accepted": true,
+      "played_sequences": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        999
+      ],
+      "ghost_detected": true,
+      "ghost_band_ratio": 0.9777,
+      "rms": 3225.4,
+      "samples": 19200
+    }
+  ],
+  "judgement": {
+    "detector_has_teeth": true,
+    "guarded_engine_clean": true,
+    "mutant_killed": true,
+    "equivalent_mutant_survived": true,
+    "mutation_score": 1.0,
+    "verdict": "PASS",
+    "why": {
+      "detector_has_teeth": "positive_control 直接播 3kHz 必须被判为幽灵音频（检测器有牙）",
+      "guarded_engine_clean": "真实双层代次守卫下 stale chunk 必须被拒且无声",
+      "mutant_killed": "关掉 push+Actor 两层守卫后，必须被物理回采抓到",
+      "equivalent_mutant_survived": "只关 push 侧守卫时未漏音 —— 说明 Actor 二次校验是真防线，该变异体等价存活"
+    }
+  },
+  "timestamp": "2026-11-11T18:06:15"
+}

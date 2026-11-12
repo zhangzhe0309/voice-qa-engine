@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Voice QA · 凭证配置台</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171b21; --panel2:#1d232b; --line:#2a323d;
+    --fg:#e6ebf2; --muted:#8b98a8; --ok:#37c98b; --warn:#e8b23a; --err:#f2555a; --accent:#4b9cf5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 64px}
+  h1{font-size:19px;margin:0 0 4px;font-weight:600;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:12.5px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+  .card h2{font-size:13px;margin:0 0 14px;color:var(--muted);font-weight:600;
+           text-transform:uppercase;letter-spacing:1px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  input[type=text],input[type=password],select{
+    width:100%;padding:9px 11px;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--fg);font:13.5px/1.4 ui-monospace,Menlo,Consolas,monospace;outline:none}
+  input:focus{border-color:var(--accent)}
+  .row{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .row>div{flex:1 1 260px;min-width:220px}
+  button{cursor:pointer;border-radius:7px;border:1px solid var(--line);background:var(--panel2);
+         color:var(--fg);padding:9px 16px;font-size:13.5px;transition:.15s}
+  button:hover{border-color:var(--accent);color:#fff}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06121f;font-weight:600}
+  button.primary:hover{filter:brightness(1.08)}
+  button.danger:hover{border-color:var(--err);color:var(--err)}
+  button[disabled]{opacity:.5;cursor:not-allowed}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 10px;border-radius:999px;
+        border:1px solid var(--line);background:var(--panel2);color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.err{background:var(--err)}
+  pre{background:#0b0e12;border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+      overflow:auto;max-height:340px;font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;margin:0}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+  .hint code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600}
+  .kv{display:flex;gap:8px;font-size:12.5px;flex-wrap:wrap}
+  .kv span{color:var(--muted)}
+  .ok{color:var(--ok)} .err{color:var(--err)} .warn{color:var(--warn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Voice QA · 凭证配置台</h1>
+  <div class="sub">填一次，全链路自动读取。明文 key 只落在本机 <code>.secrets/credentials.json</code>（已 gitignore），页面与接口只回显掩码。</div>
+
+  <div class="card">
+    <h2>① 服务端接入</h2>
+    <div class="row">
+      <div>
+        <label for="wsUrl">WebSocket Endpoint</label>
+        <input id="wsUrl" type="text" placeholder="wss://api.mosi.cn/v1/realtime" spellcheck="false" />
+      </div>
+      <div>
+        <label for="apiKey">API Key</label>
+        <input id="apiKey" type="password" placeholder="粘贴后点「保存」" spellcheck="false" autocomplete="off" />
+      </div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btnSave">保存并读取</button>
+      <button id="btnProbe">连通性自检</button>
+      <button class="danger" id="btnClear">清除本地凭证</button>
+      <span class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">读取中…</span></span>
+    </div>
+    <div class="hint">
+      保存后所有命令自动读取：<code>python -m qa_real.ws_probe</code>、<code>python -m qa_real.session_report</code> 等。<br />
+      环境变量 <code>MOSS_LIVE_API_KEY</code> 优先级更高（便于 CI 注入且不落盘）。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 连通性自检结果</h2>
+    <div class="kv" id="probeKv" style="margin-bottom:12px"><span>尚未运行</span></div>
+    <table id="probeTable" style="display:none">
+      <thead><tr><th>t (ms since page)</th><th>事件类型</th><th>payload keys</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <pre id="probeRaw" style="margin-top:12px">-</pre>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const DEFAULT_WS = "wss://api.mosi.cn/v1/realtime";
+
+function setPill(state, text){
+  $("statusDot").className = "dot " + (state || "");
+  $("statusText").textContent = text;
+}
+
+async function refreshStatus(){
+  try{
+    const r = await fetch("/api/status").then(r=>r.json());
+    if (r.configured){
+      setPill("ok", `已配置 · ${r.api_key_masked} · 来源 ${r.source}`);
+      $("wsUrl").value = r.ws_url || DEFAULT_WS;
+    } else {
+      setPill("warn", "未配置 API key");
+      if (!$("wsUrl").value) $("wsUrl").value = r.ws_url || DEFAULT_WS;
+    }
+  }catch(e){ setPill("err", "无法读取状态"); }
+}
+
+$("btnSave").onclick = async () => {
+  const ws_url = $("wsUrl").value.trim();
+  const api_key = $("apiKey").value.trim();
+  if (!api_key){ alert("请先粘贴 API Key"); return; }
+  $("btnSave").disabled = true;
+  try{
+    const r = await fetch("/api/credentials", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ws_url, api_key})
+    }).then(r=>r.json());
+    if (!r.ok){ alert(r.error || "保存失败"); return; }
+    $("apiKey").value = "";
+    setPill("ok", `已保存 · ${r.api_key_masked}`);
+    $("probeRaw").textContent = "凭证已保存，落盘于：\n" + r.store_path;
+  } finally { $("btnSave").disabled = false; refreshStatus(); }
+};
+
+$("btnClear").onclick = async () => {
+  if (!confirm("确定清除本机保存的凭证？")) return;
+  await fetch("/api/credentials", {method:"DELETE"});
+  $("probeRaw").textContent = "-";
+  $("probeTable").style.display = "none";
+  const kv = $("probeKv");
+  kv.replaceChildren();
+  const sp = document.createElement("span"); sp.textContent = "已清除凭证";
+  kv.appendChild(sp);
+  refreshStatus();
+};
+
+$("btnProbe").onclick = async () => {
+  const ws_url = $("wsUrl").value.trim();
+  const api_key = $("apiKey").value.trim();
+  $("btnProbe").disabled = true;
+  const kvBusy = $("probeKv");
+  kvBusy.replaceChildren();
+  const busy = document.createElement("span"); busy.textContent = "连接中…";
+  kvBusy.appendChild(busy);
+  $("probeRaw").textContent = "...";
+  try{
+    const r = await fetch("/api/probe", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ws_url, api_key})
+    }).then(r=>r.json());
+
+    const res = r.result || {};
+    const observed = !!res.protocol_observed;
+    const conn = res.connect_ms != null ? `${res.connect_ms} ms` : "—";
+
+    // 全部用 textContent 构建，杜绝 innerHTML 注入
+    const kv = $("probeKv");
+    kv.replaceChildren();
+    const addKv = (label, value, cls) => {
+      const l = document.createElement("span"); l.textContent = label + " ";
+      const b = document.createElement("b"); b.textContent = String(value);
+      if (cls) b.className = cls;
+      kv.append(l, b, document.createTextNode(" · "));
+    };
+    addKv("结果", observed ? "protocol_observed = true" : "未观测到协议事件", observed ? "ok" : (r.ok ? "warn" : "err"));
+    addKv("连接", conn);
+    addKv("事件数", res.event_count ?? 0);
+    addKv("握手", res.handshake_sent ?? "—");
+    addKv("鉴权头", res.auth_header_present ? "Bearer 已发送" : "未发送");
+
+    const tb = $("probeTable").querySelector("tbody");
+    tb.replaceChildren();
+    (res.first_events || []).forEach(e => {
+      const tr = document.createElement("tr");
+      const c1 = document.createElement("td"); c1.textContent = String(e.t_ms ?? "");
+      const c2 = document.createElement("td"); c2.className = "ok"; c2.textContent = String(e.type ?? "");
+      const c3 = document.createElement("td"); c3.style.color = "#8b98a8";
+      c3.textContent = (e.keys || []).join(", ");
+      tr.append(c1, c2, c3);
+      tb.appendChild(tr);
+    });
+    $("probeTable").style.display = (res.first_events||[]).length ? "table" : "none";
+    $("probeRaw").textContent = JSON.stringify(r, null, 2);
+  }catch(e){
+    $("probeRaw").textContent = "请求失败：" + e;
+  } finally { $("btnProbe").disabled = false; }
+};
+
+refreshStatus();
+</script>
+</body>
+</html>

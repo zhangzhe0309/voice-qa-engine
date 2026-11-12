@@ -1,0 +1,94 @@
+{
+  "kind": "voice_qa_session_report",
+  "schema": "v1.5-physical",
+  "timestamp": "2026-11-11T18:06:47",
+  "protocol_observed": false,
+  "protocol_note": "未连接真实服务端（缺 MOSS-Live key/endpoint）",
+  "audio_capture_verified": true,
+  "evidence_complete": false,
+  "simulation_used": false,
+  "metrics": {
+    "device_latency_const_ms": {
+      "value": 10.229,
+      "measurement_source": "physical_loopback_calibration",
+      "n": 5,
+      "sla": null,
+      "status": "PASS"
+    },
+    "acoustic_path_offset_ms": {
+      "value": 372.666,
+      "measurement_source": "physical_microphone",
+      "n": 5,
+      "status": "NOT_MEASURABLE",
+      "reason": "麦克风回采抖动过大(std=126.437ms)，不可作为物理真值源"
+    },
+    "barge_in_local_stop_latency_ms": {
+      "value": 19.0,
+      "p95": 19.0,
+      "measurement_source": "physical_loopback_envelope",
+      "n": 5,
+      "sla": "p95 <= 200ms (文档 9.2 本地刹车口径)",
+      "status": "PASS"
+    },
+    "residual_audio_frames": {
+      "value": 0.95,
+      "measurement_source": "physical_loopback_envelope",
+      "n": 5,
+      "sla": "<= 1 frame (<=20ms, <-45dBFS)",
+      "status": "PASS"
+    },
+    "ttft_ms": {
+      "value": null,
+      "measurement_source": null,
+      "n": 0,
+      "status": "NOT_MEASURABLE",
+      "reason": "未连接真实服务端（protocol_observed=false）"
+    },
+    "first_audio_chunk_ms": {
+      "value": null,
+      "measurement_source": null,
+      "n": 0,
+      "status": "NOT_MEASURABLE",
+      "reason": "未连接真实服务端（protocol_observed=false）"
+    },
+    "eot_to_speech_ms": {
+      "value": null,
+      "measurement_source": null,
+      "n": 0,
+      "status": "NOT_MEASURABLE",
+      "reason": "未连接真实服务端（protocol_observed=false）"
+    },
+    "barge_in_stop_latency_ms": {
+      "value": null,
+      "measurement_source": null,
+      "n": 0,
+      "status": "NOT_MEASURABLE",
+      "reason": "未连接真实服务端（protocol_observed=false）"
+    }
+  },
+  "mutation": {
+    "detector_has_teeth": true,
+    "guarded_engine_clean": true,
+    "mutant_killed": true,
+    "equivalent_mutant_survived": true,
+    "mutation_score": 1.0,
+    "verdict": "PASS",
+    "why": {
+      "detector_has_teeth": "positive_control 直接播 3kHz 必须被判为幽灵音频（检测器有牙）",
+      "guarded_engine_clean": "真实双层代次守卫下 stale chunk 必须被拒且无声",
+      "mutant_killed": "关掉 push+Actor 两层守卫后，必须被物理回采抓到",
+      "equivalent_mutant_survived": "只关 push 侧守卫时未漏音 —— 说明 Actor 二次校验是真防线，该变异体等价存活"
+    }
+  },
+  "verdict": {
+    "status": "PARTIAL",
+    "note": "客户端物理链路已实测通过，服务端链路未接入，不得作为模型能力结论",
+    "not_measurable": [
+      "acoustic_path_offset_ms",
+      "ttft_ms",
+      "first_audio_chunk_ms",
+      "eot_to_speech_ms",
+      "barge_in_stop_latency_ms"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "config": {
+    "ttft_ms": 400.0,
+    "first_audio_ms": 600.0,
+    "chunk_ms": 20.0,
+    "total_audio_ms": 3000.0,
+    "cancel_honor_ms": 150.0,
+    "dup_delta_rate": 0.0,
+    "out_of_order": false,
+    "silent_audio": false,
+    "leak_after_cancel": 0
+  },
+  "observed_by_server": {
+    "speech_end_ns": 0.0,
+    "response_created_ns": 391.0,
+    "first_text_ns": 391.0,
+    "first_audio_ns": 610.0,
+    "cancel_received_ns": 610.0,
+    "cancelled_ns": 766.0
+  }
+}

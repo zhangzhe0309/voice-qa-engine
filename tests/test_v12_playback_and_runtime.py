@@ -23,7 +23,7 @@ from voice_qa_engine.runtime.response_registry import ResponseRegistry
 from voice_qa_engine.clients.protocol_models import RuntimeEvent, EventType
 from voice_qa_engine.playback.state import PlaybackState
 from voice_qa_engine.playback.queue import PlaybackChunk
-from voice_qa_engine.playback.sink import MockPlaybackSink
+from voice_qa_engine.playback.sink import MockPlaybackSink, HannFadeoutSink
 from voice_qa_engine.playback.engine import PlaybackEngine
 
 
@@ -157,6 +157,49 @@ class TestPlaybackAndRuntime(unittest.IsolatedAsyncioTestCase):
                 connection_epoch=1
             )
             self.assertFalse(await self.engine.push_chunk(c))
+
+    async def test_hann_fadeout_sink_prevents_pop_noise(self):
+        """验证 HannFadeoutSink 在打断时施加半 Hann 窗，差分 Jump <= 8000 (消除爆音)"""
+        hann_sink = HannFadeoutSink(fade_duration_ms=10.0)
+        engine = PlaybackEngine(sink=hann_sink, timeline=self.timeline)
+        await engine.start()
+
+        # 生成 16kHz 高能量正弦波 (320 样点，满幅震荡)
+        t = np.linspace(0, 0.02, 320, endpoint=False)
+        loud_samples = (0.95 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
+        frame = AudioFrame(
+            samples=loud_samples,
+            format=AudioFormat(16000, 1, SampleFormat.PCM_F32LE),
+            timestamp_ns=time.monotonic_ns(),
+            sequence_id=0,
+            duration_ms=20.0
+        )
+
+        gen = await engine.begin_response("resp_hann")
+        chunk = PlaybackChunk(
+            session_id="s_hann",
+            response_id="resp_hann",
+            generation_id=gen,
+            sequence_id=0,
+            audio=frame,
+            received_monotonic_ns=time.monotonic_ns(),
+            expected_duration_ms=20.0,
+            cancel_token_id=engine.cancel_token.id,
+            connection_epoch=1
+        )
+
+        await engine.push_chunk(chunk)
+        await asyncio.sleep(0.05)  # 等待 actor 播放
+
+        # 触发打断
+        await engine.interrupt(reason="barge_in_hann")
+        await engine.close()
+
+        self.assertTrue(hann_sink.was_stopped_and_flushed)
+        self.assertTrue(hann_sink.fadeout_applied)
+        # 门禁 SLA: Jump <= 8000
+        self.assertLessEqual(hann_sink.max_jump_detected, 8000.0)
+
 
 
 if __name__ == '__main__':

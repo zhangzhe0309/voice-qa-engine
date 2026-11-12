@@ -15,3 +15,8 @@
 - [x] 阶段 7-1：CLI 入口集成与全双工端到端演示 (`voice_eval_cli.py`)
 - [x] 阶段 7-2：全量回归测试套件与编码防护审查
 - [x] 阶段 7-3：Git 提交并安全推送到 GitHub
+- [x] 阶段 8-1：飞书评测规范 (v1.4.0/v1.4.1) 核心 SLA 对齐（附和倾听精准度 ≥ 98.5%、思考留白 ≤ 1.5%、刹车时延 P50 ≤ 200ms/P95 ≤ 300ms/硬上限 ≤ 350ms）
+- [x] 阶段 8-2：防爆音物理硬门禁：实现 `HannFadeoutSink` 10ms 半 Hann 窗渐出，确保 Jump ≤ 8000
+- [x] 阶段 8-3：四态对话断点状态栈：实现 `ContextCallStack`（Resume Full、Drop Stale、Merge Context、Timeout Expire）
+- [x] 阶段 8-4：MOSS-Live 专项对抗场景库扩展（`BackchannelScenario`、`HesitationToleranceScenario`、`AudioImpulseNoiseScenario`）
+- [x] 阶段 8-5：旧分片拒绝率与客观物理时延计算模型优化，修复 CLI 双重执行 Bug 与直接运行 pytest 模块路径问题

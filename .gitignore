@@ -6,3 +6,8 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+.pytest_cache/
+.ruff_cache/
+.secrets/
+reports/2026-11-11/session_v12_179439*/
+reports/2026-11-12/

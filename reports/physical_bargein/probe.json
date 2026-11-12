@@ -1,0 +1,92 @@
+{
+  "n": 5,
+  "physical_stop_latency_ms": {
+    "n": 5,
+    "p50": 19.0,
+    "p95": 19.0,
+    "p99": 19.0,
+    "min": 18.0,
+    "max": 19.0,
+    "mean": 18.8,
+    "std": 0.447
+  },
+  "residual_frames": {
+    "n": 5,
+    "p50": 0.95,
+    "p95": 0.95,
+    "p99": 0.95,
+    "min": 0.9,
+    "max": 0.95,
+    "mean": 0.94,
+    "std": 0.022
+  },
+  "assertions": {
+    "residual_le_1_frame": true,
+    "residual_le_20ms": true
+  },
+  "per_trial_ms": [
+    19.0,
+    19.0,
+    18.0,
+    19.0,
+    19.0
+  ],
+  "measurement_source": "physical_loopback",
+  "sample_rate": 48000,
+  "chunk_ms": 20.0,
+  "chunks_before_stop": 25,
+  "device_latency_const_ms": 10.229,
+  "timestamp": "2026-11-11T18:04:55",
+  "evidence": [
+    {
+      "measurement_source": "physical_loopback",
+      "played_chunks": 25,
+      "physical_stop_latency_ms": 19.0,
+      "residual_frames_le_45db": 0.95,
+      "audible_frames": 28,
+      "first_audible_frame": 0,
+      "device_latency_ms": 10.229,
+      "stop_calls": 1
+    },
+    {
+      "measurement_source": "physical_loopback",
+      "played_chunks": 25,
+      "physical_stop_latency_ms": 19.0,
+      "residual_frames_le_45db": 0.95,
+      "audible_frames": 28,
+      "first_audible_frame": 0,
+      "device_latency_ms": 10.229,
+      "stop_calls": 1
+    },
+    {
+      "measurement_source": "physical_loopback",
+      "played_chunks": 25,
+      "physical_stop_latency_ms": 18.0,
+      "residual_frames_le_45db": 0.9,
+      "audible_frames": 28,
+      "first_audible_frame": 0,
+      "device_latency_ms": 10.229,
+      "stop_calls": 1
+    },
+    {
+      "measurement_source": "physical_loopback",
+      "played_chunks": 25,
+      "physical_stop_latency_ms": 19.0,
+      "residual_frames_le_45db": 0.95,
+      "audible_frames": 27,
+      "first_audible_frame": 1,
+      "device_latency_ms": 10.229,
+      "stop_calls": 1
+    },
+    {
+      "measurement_source": "physical_loopback",
+      "played_chunks": 25,
+      "physical_stop_latency_ms": 19.0,
+      "residual_frames_le_45db": 0.95,
+      "audible_frames": 27,
+      "first_audible_frame": 1,
+      "device_latency_ms": 10.229,
+      "stop_calls": 1
+    }
+  ]
+}

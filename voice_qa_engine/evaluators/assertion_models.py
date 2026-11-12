@@ -18,6 +18,7 @@ class AssertionSeverity(str, Enum):
 
 
 class TestStatus(str, Enum):
+    __test__ = False
     PASS = "PASS"
     FAIL = "FAIL"
     ERROR = "ERROR"
