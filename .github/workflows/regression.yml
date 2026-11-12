@@ -1,0 +1,64 @@
+name: Voice QA Regression
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"  # 每日 02:00 UTC 回归
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Unit & Scenario Tests
+        run: python -m pytest tests/ -q --tb=short
+
+      - name: V1.3 Adversarial Suite (compressed soak, mock chain)
+        run: python voice_eval_cli.py --v13
+
+      - name: Scorecard Generation
+        run: python voice_eval_cli.py --scorecard
+
+      - name: SLA Drift Gate (fail if overall regression)
+        run: |
+          python - <<'PY'
+          import json, sys
+          card = json.load(open("reports/scorecard.json", encoding="utf-8"))
+          status = card["overall_status"]
+          tampered = card["evidence_tampered_sessions"]
+          print(f"overall_status={status} tampered={len(tampered)}")
+          # 证据被篡改/缺失 → 一票否决；全 FAIL → 回归失败。
+          # INCONCLUSIVE 允许通过（无 key/无真实证据环境不虚标，属预期语义）。
+          if tampered:
+              sys.exit(f"证据链校验失败 {len(tampered)} 个会话: {tampered[:3]}")
+          if status == "FAIL":
+              sys.exit("SLA 大盘判定 FAIL: 存在超限指标或失败场景")
+          print("SLA 漂移门禁通过")
+          PY
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-qa-reports
+          path: |
+            reports/
+            !reports/**/input_audio.wav
+            !reports/**/output_audio.wav
+          retention-days: 14

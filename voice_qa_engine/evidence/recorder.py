@@ -17,12 +17,22 @@ from voice_qa_engine.evidence.manifest import generate_manifest
 
 
 class EvidenceRecorder:
-    def __init__(self, base_dir: str, session_id: str):
+    """
+    streaming=False: 内存缓冲模式（默认，兼容既有单测用法，finalize 时统一落盘）
+    streaming=True : 流式落盘模式（长时 soak 会话必需，write_* 即时追加写 WAV，杜绝内存累积）
+    """
+
+    def __init__(self, base_dir: str, session_id: str, streaming: bool = False):
         self.base_dir = base_dir
         self.session_id = session_id
         self.session_dir = os.path.join(base_dir, session_id)
+        self.streaming = streaming
         self.input_frames: list[AudioFrame] = []
         self.output_frames: list[AudioFrame] = []
+        self._input_writer = None
+        self._output_writer = None
+        self._input_wav_path = os.path.join(self.session_dir, "input_audio.wav")
+        self._output_wav_path = os.path.join(self.session_dir, "output_audio.wav")
         self.events_file_path = os.path.join(self.session_dir, "events.jsonl")
 
     async def initialize(self):
@@ -30,12 +40,33 @@ class EvidenceRecorder:
         # 清空或初始化 events 文件
         with open(self.events_file_path, "w", encoding="utf-8"):
             pass
+        if self.streaming:
+            self._input_writer = self._open_stream_writer(self._input_wav_path)
+            self._output_writer = self._open_stream_writer(self._output_wav_path)
+
+    @staticmethod
+    def _open_stream_writer(filepath: str):
+        wf = wave.open(filepath, "wb")
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(16000)
+        return wf
+
+    def _stream_write(self, writer, frame: AudioFrame):
+        clipped = np.clip(frame.samples, -1.0, 1.0)
+        writer.writeframes((clipped * 32767.0).astype(np.int16).tobytes())
 
     async def write_input_audio(self, frame: AudioFrame):
-        self.input_frames.append(frame)
+        if self.streaming:
+            self._stream_write(self._input_writer, frame)
+        else:
+            self.input_frames.append(frame)
 
     async def write_output_audio(self, frame: AudioFrame):
-        self.output_frames.append(frame)
+        if self.streaming:
+            self._stream_write(self._output_writer, frame)
+        else:
+            self.output_frames.append(frame)
 
     async def write_event(self, event: RuntimeEvent):
         # 序列化单条事件为 JSON Line
@@ -83,9 +114,18 @@ class EvidenceRecorder:
             wf.writeframes(pcm_bytes)
 
     async def finalize(self, metrics: Dict[str, Any], session_meta: Dict[str, Any]):
-        # 1. 物理导出 input_audio.wav 与 output_audio.wav
-        self._save_wav(self.input_frames, "input_audio.wav")
-        self._save_wav(self.output_frames, "output_audio.wav")
+        if self.streaming:
+            # 流式模式：关闭 WAV 写头完成文件收尾（未写入任何帧时即为 0 样本空 WAV）
+            if self._input_writer is not None:
+                self._input_writer.close()
+                self._input_writer = None
+            if self._output_writer is not None:
+                self._output_writer.close()
+                self._output_writer = None
+        else:
+            # 1. 物理导出 input_audio.wav 与 output_audio.wav
+            self._save_wav(self.input_frames, "input_audio.wav")
+            self._save_wav(self.output_frames, "output_audio.wav")
 
         # 2. 导出 metrics.json
         metrics_path = os.path.join(self.session_dir, "metrics.json")

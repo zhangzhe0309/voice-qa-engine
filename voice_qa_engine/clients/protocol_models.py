@@ -31,6 +31,8 @@ class EventType(str, Enum):
     AUDIO_CHUNK_REJECTED = "response.audio.chunk.rejected"
     PLAYBACK_DRAINED = "playback.drained"
     CRISIS_EMERGENCY_STOP = "crisis.emergency.stop"
+    TOOL_CALLED = "tool.called"
+    TOOL_RESULTED = "tool.resulted"
     ERROR = "error"
 
 

@@ -33,6 +33,16 @@
 - **声学跳变与爆音扫描**: 16-bit PCM 单步一阶差分突变 Jump ≤ 8,000，削波率 0.00%，直流偏置 < 5.0。
 - **弱网混沌断言 (tc-netem)**: 15% 丢包与 150ms 抖动下，验证 JitterBuffer 队列无饥饿且打断 Flush 正常。
 
+### 6. V1.3 对抗增强与统计置信 (评测规范 v1.4.0 对齐)
+- **双 Agent LLM 对弈**: `LLMPoweredVUA`（OpenAI 兼容接口，key 走环境变量 `VQA_LLM_API_KEY`，无 key 拒绝伪造 → NOT_RUN/脚本模式标 SIMULATED_PASS）+ `ToolExecutionLedger` 声称/落盘比对，假完工一票否决。
+- **声纹排他拒识**: 背景多人争吵（SNR 5dB 合成）下行 0 字节 + 定向唤醒 ≤ 600ms；无唤醒证据 → INCONCLUSIVE 不虚标。
+- **30 分钟黄金基线 soak**: 6 阶段时序编排 + 确定性随机注入（15 打断/7 支线/20 附和）+ psutil RSS 漂移 ≤ 10% + 时间压缩比参数化。
+- **不流利与倒吸气耐受**: 80ms 倒吸气前置压麦 + 否定纠偏脏参数 0 写入；误抢话率走 Wilson 置信上界判定（n ≥ 200 才具统计判定力，否则 INCONCLUSIVE）。
+- **谐音误唤醒矩阵**: 6 组谐音陷阱 × 声线交叉注入，误唤醒严格 0 + 样本量门禁。
+- **碰撞窗口分级**: 0-150ms 无害交叠 / 150-250ms 决策缓冲 / > 250ms 恶性碰撞；Floor Yielding ≥ 98%。
+- **AEC 自激边界扫描**: 回灌延迟 0~300ms × 增益 0~1 网格逐点 ERLE 评估，输出自激失效边界曲线。
+- **一页指标大盘**: `--scorecard` 聚合全部会话 SLA P50/P95 矩阵 + EvidenceValidator 防篡改联动；篡改会话一票否决。
+
 ---
 
 ## 快速开始
@@ -46,9 +56,19 @@
 python3 voice_eval_cli.py
 ```
 
-### 单独执行全双工交互评测
+### 执行 V1.3 对抗增强场景套件 (对弈/拒识/soak/不流利/谐音)
 ```bash
-python3 full_duplex_evaluator.py
+python3 voice_eval_cli.py --v13
+
+# LLM 驱动对弈（可选）: 配置环境变量后自动切换 LLM VUA
+export VQA_LLM_API_KEY=sk-...        # OpenAI 兼容
+export VQA_LLM_BASE_URL=https://...  # 可选，默认 OpenAI
+export VQA_LLM_MODEL=gpt-4o-mini     # 可选
+```
+
+### 生成一页指标大盘 (SLA 矩阵 + 证据防篡改)
+```bash
+python3 voice_eval_cli.py --scorecard
 ```
 
 ---
@@ -57,13 +77,23 @@ python3 full_duplex_evaluator.py
 
 ```text
 ├── full_duplex_evaluator.py      # 全双工四段时延、打断Flush断言与三阶对抗引擎
-├── voice_eval_cli.py             # 综合评测 CLI 与调度总控
+├── voice_eval_cli.py             # 综合评测 CLI 与调度总控 (--v12 / --v13 / --scorecard)
 ├── acoustic_inspector.py         # 物理声学质量、爆音跳跃与削波扫描
 ├── latency_benchmark.py          # TTS / ASR / VAD 首包时延与实时率 (RTF) 基准
 ├── noise_evaluator.py            # 环境噪声注入、SNR 衰减与 CER 字错率评估
 ├── mfa_phoneme_aligner.py        # MFA 音素级强制对齐注水
 ├── tc_netem_chaos_evaluator.py   # 弱网丢包抖动与混沌评测
 ├── webrtc_getstats_inspector.py  # WebRTC getStats 实时统计巡检
+├── voice_qa_engine/
+│   ├── scenarios/                # 场景库: 正常问答/打断/附和/对弈/拒识/soak/不流利/谐音
+│   │   └── registry.py           #   ScenarioRegistry + SuiteRunner 统一执行器
+│   ├── agents/                   # LLM 驱动 Virtual User Agent + 工具物理状态拦截器
+│   ├── runtime/                  # 会话状态机/事件时间轴/上下文栈/轮次仲裁
+│   ├── audio/                    # 流式输入源/重叠语音合成/语料矩阵
+│   ├── evidence/                 # 五大物理证据流式落盘 + SHA-256 Manifest
+│   ├── evaluators/               # 六态断言/时延/AEC/统计置信/证据校验
+│   └── reporting/                # scorecard 一页指标大盘
+├── .github/workflows/regression.yml  # CI 回归: pytest + v13 套件 + SLA 漂移门禁
 ├── docs/                         # 详细评测原理与规范说明
 └── reports/                      # 自动化测试输出基准报告 (JSON)
 ```

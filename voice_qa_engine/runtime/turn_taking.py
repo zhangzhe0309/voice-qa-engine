@@ -59,6 +59,43 @@ class DualChannelTurnTakingArbiter:
             "latency_ms": 20.0
         }
 
+    # FireRedChat 碰撞窗口分级阈值 (ms)
+    OVERLAP_HARMLESS_MAX_MS = 150.0
+    OVERLAP_TOLERANCE_MAX_MS = 250.0
+
+    @classmethod
+    def classify_collision_window(cls, overlap_ms: float) -> Dict[str, Any]:
+        """
+        话权交叠窗口分级（FireRedChat 模型）:
+        0~150ms 无害自然交叠 | 150~250ms 容忍决策缓冲 | >250ms 恶性抢话碰撞
+        """
+        if overlap_ms <= cls.OVERLAP_HARMLESS_MAX_MS:
+            grade = "harmless_overlap"
+        elif overlap_ms <= cls.OVERLAP_TOLERANCE_MAX_MS:
+            grade = "tolerance_buffer"
+        else:
+            grade = "malignant_collision"
+        return {"overlap_ms": overlap_ms, "grade": grade}
+
+    @classmethod
+    def floor_yield_metrics(cls, collision_events: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        主动让步率 (Floor Yielding Ratio):
+        collision_events: [{"overlap_ms": float, "yielded": bool}]
+        SLA: >= 0.98（恶性碰撞中模型必须主动让步）
+        """
+        malignant = [e for e in collision_events
+                     if cls.classify_collision_window(e.get("overlap_ms", 0))["grade"] == "malignant_collision"]
+        yielded = [e for e in malignant if e.get("yielded")]
+        rate = (len(yielded) / len(malignant)) if malignant else None
+        return {
+            "total_collisions": len(collision_events),
+            "malignant_collisions": len(malignant),
+            "malignant_yielded": len(yielded),
+            "floor_yielding_rate": round(rate, 4) if rate is not None else None,
+            "sla": 0.98,
+        }
+
     def slow_semantic_track(
         self,
         text_content: str,

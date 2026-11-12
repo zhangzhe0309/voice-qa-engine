@@ -45,6 +45,11 @@ class EvidenceValidator:
             return False, f"Manifest JSON 解析异常: {e}", {}
 
         artifacts = manifest_data.get("artifacts", {})
+        if not artifacts:
+            return False, "Manifest 未记录任何 artifacts (空转校验无效)", {}
+        missing_in_manifest = [f for f in cls.REQUIRED_FILES if f != "manifest.json" and f not in artifacts]
+        if missing_in_manifest:
+            return False, f"Manifest 未覆盖必备产物: {missing_in_manifest}", {}
         hash_results = {}
 
         for filename, info in artifacts.items():

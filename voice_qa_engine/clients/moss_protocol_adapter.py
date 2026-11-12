@@ -181,6 +181,40 @@ class MossLiveProtocolAdapter(MossProtocolAdapter):
                 raw_event_type=msg_type
             ))
 
+        elif msg_type == "response.tool_call":
+            call = data.get("tool_call", {})
+            events.append(RuntimeEvent(
+                event_type=EventType.TOOL_CALLED,
+                session_id=session_id,
+                connection_epoch=connection_epoch,
+                response_id=data.get("response_id"),
+                monotonic_ns=now_ns,
+                source="server_event",
+                payload={
+                    "call_id": call.get("call_id", data.get("call_id")),
+                    "name": call.get("name", data.get("name")),
+                    "params": call.get("params", data.get("params", {})),
+                    "claimed": True
+                },
+                raw_event_type=msg_type
+            ))
+
+        elif msg_type == "response.tool.result":
+            events.append(RuntimeEvent(
+                event_type=EventType.TOOL_RESULTED,
+                session_id=session_id,
+                connection_epoch=connection_epoch,
+                response_id=data.get("response_id"),
+                monotonic_ns=now_ns,
+                source="server_event",
+                payload={
+                    "call_id": data.get("call_id"),
+                    "executed": bool(data.get("executed", True)),
+                    "result": data.get("result")
+                },
+                raw_event_type=msg_type
+            ))
+
         elif msg_type == "error":
             events.append(RuntimeEvent(
                 event_type=EventType.ERROR,

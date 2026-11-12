@@ -57,6 +57,7 @@ class MockConfig:
         self.out_of_order = bool(kw.get("out_of_order", False))
         self.silent_audio = bool(kw.get("silent_audio", False))
         self.leak_after_cancel = int(kw.get("leak_after_cancel", 0))
+        self.fake_completion = bool(kw.get("fake_completion", False))
         self.seed = int(kw.get("seed", 7))
 
     def ground_truth(self) -> dict[str, Any]:
@@ -188,7 +189,15 @@ class Session:
                 )
                 await asyncio.sleep(max(0.0, (honor_ns - time.monotonic_ns()) / 1e9))
                 await self.send({"type": "response.cancelled", "response_id": self.response_id})
-                self.ground_truth_log["cancelled_ns"] = time.monotonic_ns()
+                cancelled_ns = time.monotonic_ns()
+                self.ground_truth_log["cancelled_ns"] = cancelled_ns
+                # 停算熔断遥测：推理中止时延与废弃 Token 数（供断言评估）
+                cancel_ns = self.ground_truth_log.get("cancel_received_ns")
+                if cancel_ns:
+                    self.ground_truth_log["inference_abort_ms"] = round(
+                        (cancelled_ns - cancel_ns) / 1e6, 3
+                    )
+                self.ground_truth_log["discarded_tokens"] = max(0, n_chunks - sent)
                 return
 
             msg = {
@@ -215,6 +224,23 @@ class Session:
             self.seq += 1
             sent += 1
             await asyncio.sleep(self.cfg.chunk_ms / 1000.0)
+
+        # 工具调用闭环：声称完成 + 物理执行记录（fake_completion 时只声称、不落盘）
+        await self.send({
+            "type": "response.tool_call",
+            "response_id": self.response_id,
+            "tool_call": {"call_id": "mock_call_001", "name": "query_schedule", "params": {"source": "mock"}},
+        })
+        self.ground_truth_log["tool_claimed_ns"] = time.monotonic_ns()
+        if not self.cfg.fake_completion:
+            await self.send({
+                "type": "response.tool.result",
+                "response_id": self.response_id,
+                "call_id": "mock_call_001",
+                "executed": True,
+                "result": {"ok": True},
+            })
+            self.ground_truth_log["tool_executed_ns"] = time.monotonic_ns()
 
         await self.send({"type": "response.done", "response": {"id": self.response_id}})
         self.ground_truth_log["response_done_ns"] = time.monotonic_ns()
@@ -268,6 +294,7 @@ def main() -> None:
     ap.add_argument("--out-of-order", action="store_true")
     ap.add_argument("--silent-audio", action="store_true")
     ap.add_argument("--leak-after-cancel", type=int, default=0)
+    ap.add_argument("--fake-completion", action="store_true")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--truth", default="reports/mock_server/ground_truth.json")
     args = ap.parse_args()
@@ -282,6 +309,7 @@ def main() -> None:
         out_of_order=args.out_of_order,
         silent_audio=args.silent_audio,
         leak_after_cancel=args.leak_after_cancel,
+        fake_completion=args.fake_completion,
         seed=args.seed,
     )
     asyncio.run(serve(cfg, args.host, args.port, Path(args.truth)))

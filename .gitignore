@@ -11,3 +11,5 @@ __pycache__/
 .secrets/
 reports/2026-11-11/session_v12_179439*/
 reports/2026-11-12/
+
+reports/

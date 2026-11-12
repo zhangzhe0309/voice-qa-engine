@@ -50,6 +50,80 @@ class AECCollisionEvaluator:
             "status": TestStatus.PASS if erle_pass else TestStatus.FAIL
         }
 
+    def scan_self_oscillation_boundary(
+        self,
+        loopback_delays_ms: Optional[List[float]] = None,
+        loopback_gains: Optional[List[float]] = None,
+        duration_ms: float = 500.0,
+        sample_rate: int = 16000,
+        erle_sla_db: Optional[float] = None,
+        residual_factor: float = 1e-3,
+    ) -> Dict[str, Any]:
+        """
+        电信级自激死锁阈值扫描（借鉴 SIPp/Asterisk 回灌思路）:
+        延迟 (0~300ms) × 增益 (0~1) 网格逐点评估 ERLE，输出自激失效边界曲线。
+        网格点上 ERLE < SLA 即判定该 (delay, gain) 组合存在自激风险。
+        """
+        import numpy as np
+        delays = loopback_delays_ms or [0.0, 50.0, 100.0, 150.0, 200.0, 250.0, 300.0]
+        gains = loopback_gains or [0.0, 0.25, 0.5, 0.75, 1.0]
+        sla = erle_sla_db if erle_sla_db is not None else self.erle_sla_db
+
+        n = int(sample_rate * duration_ms / 1000.0)
+        t = np.arange(n) / sample_rate
+        reference = np.sin(2 * np.pi * 440.0 * t).astype(np.float64)
+
+        grid: List[Dict[str, Any]] = []
+        failing: List[Dict[str, Any]] = []
+        for gain in gains:
+            for delay_ms in delays:
+                delay_samples = int(sample_rate * delay_ms / 1000.0)
+                captured = np.zeros(n)
+                if delay_samples < n:
+                    captured[delay_samples:] = reference[: n - delay_samples] * gain
+                # 无回声注入（gain=0 或延迟超出观测窗）≠ 自激，跳过 ERLE 判定
+                no_echo = float(np.mean(captured ** 2)) < 1e-12
+                if no_echo:
+                    point = {
+                        "delay_ms": delay_ms,
+                        "gain": gain,
+                        "erle_db": None,
+                        "no_echo_injected": True,
+                        "self_oscillation_risk": False,
+                    }
+                    grid.append(point)
+                    continue
+                # AEC 残余建模：反灌信号 × 残余系数（1e-3 ≈ -60dB 抑制基线；弱 AEC 调高该值）
+                residual = captured * residual_factor
+                res = self.evaluate_echo_return_loss_enhancement(
+                    reference, captured, residual, loopback_gain=gain
+                )
+                point = {
+                    "delay_ms": delay_ms,
+                    "gain": gain,
+                    "erle_db": res["erle_db"],
+                    "self_oscillation_risk": res["erle_db"] < sla,
+                }
+                grid.append(point)
+                if point["self_oscillation_risk"]:
+                    failing.append(point)
+
+        return {
+            "scan_grid": grid,
+            "failing_points": failing,
+            "boundary_summary": {
+                "max_safe_gain_at_0ms": max(
+                    (p["gain"] for p in grid
+                     if p["delay_ms"] == 0.0 and not p.get("no_echo_injected")
+                     and not p["self_oscillation_risk"]),
+                    default=None,
+                ),
+                "total_points": len(grid),
+                "failing_points": len(failing),
+            },
+            "erle_sla_db": sla,
+        }
+
     def detect_double_talk_collision(
         self,
         mic_signal: np.ndarray,

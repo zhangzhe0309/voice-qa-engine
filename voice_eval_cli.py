@@ -338,8 +338,104 @@ def run_v12_suite():
     asyncio.run(_async_exec())
 
 
+def run_v13_suite():
+    """V1.3 新场景套件: 经 SuiteRunner 统一执行 + 流式证据落盘"""
+    import asyncio
+    from voice_qa_engine.runtime.session_runtime import SessionRuntime
+    from voice_qa_engine.runtime.event_timeline import EventTimeline
+    from voice_qa_engine.playback.engine import PlaybackEngine
+    from voice_qa_engine.playback.sink import HannFadeoutSink
+    from voice_qa_engine.evidence.recorder import EvidenceRecorder
+    from voice_qa_engine.audio.input.streaming_input import StreamingAudioInput
+    from voice_qa_engine.scenarios.registry import ScenarioRegistry, SuiteRunner, ScenarioContext
+    from voice_qa_engine.scenarios.speaker_exclusion_scenario import SpeakerExclusionScenario
+    from voice_qa_engine.scenarios.golden_baseline_scenario import GoldenBaselineSoakScenario
+    from voice_qa_engine.scenarios.disfluency_scenario import DisfluencyScenario
+    from voice_qa_engine.scenarios.homophone_wakeup_scenario import HomophoneWakeupScenario
+    from voice_qa_engine.agents.sparring_scenario import SparringScenario, MockDialogBackend
+    from voice_qa_engine.agents.virtual_user import LLMPoweredVUA, ScriptedVUA
+
+    print("\n" + "=" * 70)
+    print("🚀 Voice QA Engine V1.3: 对抗增强场景套件 (对弈/拒识/soak/不流利/谐音)")
+    print("=" * 70)
+
+    reports_dir = BASE_DIR / "reports" / "v13" / time.strftime("%Y-%m-%d")
+
+    async def context_factory(scenario_id: str) -> ScenarioContext:
+        sid = f"{scenario_id}_{int(time.time() * 1e6)}"
+        timeline = EventTimeline()
+        engine = PlaybackEngine(sink=HannFadeoutSink(), timeline=timeline)
+        audio_input = StreamingAudioInput()
+        runtime = SessionRuntime(
+            session_id=sid, audio_input=audio_input, playback_engine=engine,
+            timeline=timeline,
+            recorder=EvidenceRecorder(base_dir=str(reports_dir), session_id=sid,
+                                      streaming=True),
+        )
+        await runtime.connect()
+        await runtime.start()
+        return ScenarioContext(runtime, audio_input, engine, timeline, runtime.recorder, {})
+
+    registry = ScenarioRegistry()
+
+    def _sparring(runtime, audio_input, playback_engine, timeline, evaluator=None):
+        if LLMPoweredVUA().is_available():
+            vua = LLMPoweredVUA()
+            print("  [VUA] LLM 驱动模式 (VQA_LLM_API_KEY 已配置)")
+        else:
+            vua = ScriptedVUA(script=[
+                "帮我们确认五天分布式架构方案和负责人",
+                "时间就定下周，每天上午十点开始",
+                "存储选型倾向用对象存储，成本优先",
+                "好的，那就按这个方案推进，负责人保持不变",
+            ])
+            print("  [VUA] 脚本模式 (未检测到 VQA_LLM_API_KEY → 结果标 SIMULATED_PASS)")
+        return SparringScenario(runtime, audio_input, playback_engine, timeline,
+                                vua=vua, backend=MockDialogBackend())
+
+    def _soak(runtime, audio_input, playback_engine, timeline, evaluator=None):
+        print("  [Soak] 时间压缩比 60:1 (30 分钟语义 → 30 秒物理)")
+        return GoldenBaselineSoakScenario(runtime, audio_input, playback_engine, timeline)
+
+    for cls in (SpeakerExclusionScenario, DisfluencyScenario, HomophoneWakeupScenario):
+        registry.register(cls)
+    registry.register(_sparring)
+    registry.register(_soak)
+
+    report = asyncio.run(SuiteRunner("v13_adversarial", context_factory).run(registry))
+
+    out_json = reports_dir / "suite_report.json"
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2, default=str)
+
+    for entry in report["scenarios"]:
+        print(f"  --> {entry['scenario_id']:<32} 状态: {entry['status']}  "
+              f"证据可信: {entry.get('evidence_valid')}")
+    print(f"  套件总判定: {report['overall_status']} | 报告落盘: {out_json}")
+    return report
+
+
+def run_scorecard():
+    """一页指标大盘: 扫描 reports/ 全部会话证据，聚合 SLA 矩阵"""
+    from voice_qa_engine.reporting.scorecard import build_scorecard, render_scorecard_text
+
+    reports_root = str(BASE_DIR / "reports")
+    scorecard = build_scorecard(reports_root)
+    print(render_scorecard_text(scorecard))
+
+    out_json = Path(reports_root) / "scorecard.json"
+    with open(out_json, "w", encoding="utf-8") as f:
+        json.dump(scorecard, f, ensure_ascii=False, indent=2)
+    print(f"大盘已落盘: {out_json}")
+    return scorecard
+
+
 if __name__ == "__main__":
-    if "--v12" in sys.argv:
+    if "--v13" in sys.argv:
+        run_v13_suite()
+    elif "--scorecard" in sys.argv:
+        run_scorecard()
+    elif "--v12" in sys.argv:
         run_v12_suite()
     else:
         run_full_suite()
