@@ -104,6 +104,14 @@ def run_full_suite():
             asr_res = latency_bench.benchmark_asr(noisy_wav)
             if asr_res.get("success"):
                 raw_text = asr_res.get("recognized_text") or ""
+                if not raw_text.strip():
+                    print(f"  --> SNR={snr:4.1f}dB | ASR 返回空文本 (无凭证/服务未就绪)，标记 INCONCLUSIVE")
+                    noise_results.append({
+                        "snr_db": snr,
+                        "status": "INCONCLUSIVE",
+                        "reason": "ASR 返回空文本，跳过 CER 计算"
+                    })
+                    continue
                 hyp_text = str(raw_text).replace("，", "").replace("？", "").replace("。", "")
                 cer_res = noise_eval.calculate_cer(ref_text, hyp_text)
                 env_desc = "安静环境" if snr >= 20 else ("走廊轻噪" if snr >= 10 else "严重嘈杂")

@@ -78,19 +78,52 @@ class ContextCallStack:
             depth=len(self.frames),
             topic=topic,
             state=FrameState.ACTIVE,
-            vars=initial_vars or {},
+            vars=dict(initial_vars or {}),
             snapshot_timestamp_ms=snapshot_ms or (time.time() * 1000.0),
             ttl=self.default_ttl
         )
         self.frames.append(new_frame)
         return new_frame
 
-    def resume_full(self, target_depth: Optional[int] = None) -> Optional[ContextFrame]:
+    def calculate_invariance_score(
+        self,
+        frame: ContextFrame,
+        resumed_vars: Optional[Dict[str, Any]] = None,
+        expected_topic: Optional[str] = None
+    ) -> float:
+        """
+        根据打断恢复前后变量保真度与主题一致性，动态计算打断不变性评分 (0.0 ~ 1.0)
+        """
+        score = 1.0
+        # 1. 主题一致性检验
+        if expected_topic and frame.topic != expected_topic:
+            score -= 0.3
+
+        # 2. 状态变量保真度检验 (Jaccard & Value 匹配度)
+        if resumed_vars is not None and frame.vars:
+            total_keys = set(frame.vars.keys()) | set(resumed_vars.keys())
+            if not total_keys:
+                return round(max(0.0, score), 3)
+
+            matched_keys = 0
+            for k in frame.vars:
+                if k in resumed_vars and resumed_vars[k] == frame.vars[k]:
+                    matched_keys += 1
+            key_fidelity = matched_keys / len(total_keys)
+            score = score * key_fidelity
+
+        return round(max(0.0, min(1.0, score)), 3)
+
+    def resume_full(
+        self,
+        target_depth: Optional[int] = None,
+        verification_vars: Optional[Dict[str, Any]] = None,
+        expected_topic: Optional[str] = None
+    ) -> Optional[ContextFrame]:
         """
         状态 ①: 完全接续 (Resume Full)
         弹出栈顶支线快照，恢复挂起的主线或上一级上下文，保持打断不变性
         """
-        # 如果当前有活跃帧且不是目标帧，先结案或标记
         active = self.active_frame()
         if active and target_depth is not None and active.depth != target_depth:
             active.state = FrameState.MERGED
@@ -101,7 +134,9 @@ class ContextCallStack:
                 continue
             if f.state == FrameState.SUSPENDED:
                 f.state = FrameState.ACTIVE
-                f.interruption_invariance_score = 1.0
+                f.interruption_invariance_score = self.calculate_invariance_score(
+                    f, verification_vars, expected_topic
+                )
                 return f
         return None
 
@@ -137,6 +172,26 @@ class ContextCallStack:
         for f in self.frames:
             if f.depth == target_depth:
                 f.vars.update(new_vars)
+                f.state = FrameState.ACTIVE
+                return f
+        return None
+
+    def rollback_and_rebase(
+        self,
+        rollback_keys: List[str],
+        updated_vars: Optional[Dict[str, Any]] = None,
+        target_depth: int = 0
+    ) -> Optional[ContextFrame]:
+        """
+        FDB v3 场景 9 专用: 改口回滚与 State Rebase 增量原子操作
+        清除因用户改口而作废的历史字段，并合入重构后的新参数
+        """
+        for f in self.frames:
+            if f.depth == target_depth:
+                for k in rollback_keys:
+                    f.vars.pop(k, None)
+                if updated_vars:
+                    f.vars.update(updated_vars)
                 f.state = FrameState.ACTIVE
                 return f
         return None

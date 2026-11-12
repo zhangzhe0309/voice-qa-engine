@@ -27,8 +27,10 @@ class EventType(str, Enum):
     PLAYBACK_INTERRUPT_REQUESTED = "playback.interrupt.requested"
     PLAYBACK_QUEUE_FLUSHED = "playback.queue.flushed"
     PLAYBACK_SINK_STOPPED = "playback.sink.stopped"
+    PLAYBACK_SINK_UNDERRUN = "playback.sink.underrun"
     AUDIO_CHUNK_REJECTED = "response.audio.chunk.rejected"
     PLAYBACK_DRAINED = "playback.drained"
+    CRISIS_EMERGENCY_STOP = "crisis.emergency.stop"
     ERROR = "error"
 
 

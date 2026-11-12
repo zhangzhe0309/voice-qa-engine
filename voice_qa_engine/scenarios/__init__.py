@@ -9,6 +9,8 @@ from voice_qa_engine.scenarios.advanced_scenarios import (
     HesitationToleranceScenario,
     AudioImpulseNoiseScenario,
 )
+from voice_qa_engine.scenarios.tool_jitter_scenario import ToolConcurrencyJitterScenario
+from voice_qa_engine.scenarios.crisis_safety_scenario import CrisisSafetyScenario
 
 __all__ = [
     "BaseVoiceScenario",
@@ -19,4 +21,6 @@ __all__ = [
     "BackchannelScenario",
     "HesitationToleranceScenario",
     "AudioImpulseNoiseScenario",
+    "ToolConcurrencyJitterScenario",
+    "CrisisSafetyScenario",
 ]

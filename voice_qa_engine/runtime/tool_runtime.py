@@ -75,7 +75,8 @@ class ToolAbortManager:
                     call.task.cancel()
 
                 lat_ms = (now_ns - call.started_monotonic_ns) / 1_000_000.0
-                call.abort_latency_ms = min(lat_ms, self.abort_sla_ms)  # 熔断信令生效时延
+                call.abort_latency_ms = lat_ms  # Q2 修复: 保留真实延迟，不截断
+                call.abort_sla_violated = lat_ms > self.abort_sla_ms  # 新增 SLA 超标标记
                 aborted_calls.append(call)
                 del self.active_calls[call_id]
 

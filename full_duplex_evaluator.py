@@ -149,7 +149,7 @@ class FullDuplexEvaluator:
                     summary["hesitation"]["premature_interrupted"] += 1
 
         b_total = summary["backchanneling"]["total"]
-        backchannel_acc = (summary["backchanneling"]["correct_uninterrupted"] / b_total) if b_total > 0 else 1.0
+        backchannel_acc = (summary["backchanneling"]["correct_uninterrupted"] / b_total) if b_total > 0 else None  # Q3 修复: 空集时返回 None 而非假满分 1.0
 
         h_total = summary["hesitation"]["total"]
         premature_rate = (summary["hesitation"]["premature_interrupted"] / h_total) if h_total > 0 else 0.0
@@ -162,7 +162,8 @@ class FullDuplexEvaluator:
 
         pass_all = (
             barge_in_success_rate >= 0.95 and
-            backchannel_acc >= self.config["min_backchannel_precision"] and
+            # Q3 修复: backchannel_acc 为 None (空集) 时保守置 False，不假设通过
+            (backchannel_acc is not None and backchannel_acc >= self.config["min_backchannel_precision"]) and
             premature_rate <= self.config["max_premature_interruption_rate"]
         )
 
